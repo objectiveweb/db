@@ -12,12 +12,15 @@ Getting Started
     * GET api.php/database - Lists "database" tables
     * GET api.php/database/table - Lists all records from "table" on database "database"
     * GET api.php/database/table/id - Retrieves a particular record from the database
+    * OPTIONS api.php/database/table - Shows the table structure (DESCRIBE table)
   * login.php/logout logs you out
 
 TODO
 ----
 
   * Review the API - is it ok/sane ?
+    * Parameters should follow the sql syntax (json-encoded?)
+  * Write tests!
   * Code the DB Class (DB/Table, DB/Query ?)
   * Further actions
     * POST / - Create database
@@ -26,3 +29,4 @@ TODO
     * PUT /database/table - Alter table
     * POST /database/table - Insert into
     * PUT /database/table/id - Update record with id = id
+	* ...
