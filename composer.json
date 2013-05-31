@@ -1,0 +1,26 @@
+{
+	"name": "bravado/db",
+	"type": "library",
+	"description": "Database Abstraction Layer and Management Frontend",
+	"keywords": ["db", "sql", "ui" ],
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Guilherme Barile",
+			"email": "gui@bravado.com.br",
+			"homepage": "https://guigouz.github.io"
+		},
+		{
+			"name": "Roberto Martins",
+			"email": "bob@bravado.com.br",
+			"homepage": "https://github.com/miles.chet"
+		}
+	],
+	"require": {
+		"php": ">=5.3.0",
+		"slim/slim": "2.*"
+	},
+	"autoload": {
+		"psr-0": { "Bravado": "." }
+	}
+}
