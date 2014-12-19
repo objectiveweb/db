@@ -53,33 +53,6 @@ class DB {
     return $this;
   }
 
-  /* Transactions */
-
-  function beginTransaction() {
-    return $this->pdo->beginTransaction();
-  }
-
-  function rollBack() {
-    return $this->pdo->rollBack();
-  }
-
-  function commit() {
-    return $this->pdo->commit();
-  }
-
-  function transaction($callable) {
-    $this->beginTransaction();
-
-    try {
-      call_user_func($callable);
-      return $this->commit();
-    } catch (Exception $ex) {
-      $this->rollBack();
-
-      return false;
-    }
-  }
-
   /**
    *
    * Binds $value to $pos
@@ -148,36 +121,36 @@ class DB {
     return $this->stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 
-  // argument helpers
-  private static function _encode($obj) {
-    return json_encode($obj);
+
+  /* Transactions ------------------------------------------------ */
+
+  function beginTransaction() {
+    return $this->pdo->beginTransaction();
   }
 
-  private static function _where($args = null, $glue = "AND", $prefix = "WHERE ") {
-
-    if (!$args) {
-      return '';
-    }
-
-    $bindings = [];
-
-    if (is_array($args)) {
-      $cond = [];
-
-      // TODO suportar _and, _or
-      foreach ($args as $key => $value) {
-        $cond[] = "$key = :where_$key";
-        $bindings[":where_$key"] = $value;
-      }
-
-      $args = implode(" $glue ", $cond);
-    }
-
-
-    return ["$prefix$args", $bindings];
+  function rollBack() {
+    return $this->pdo->rollBack();
   }
 
-  // sql helpers
+  function commit() {
+    return $this->pdo->commit();
+  }
+
+  function transaction($callable) {
+    $this->beginTransaction();
+
+    try {
+      call_user_func($callable);
+      return $this->commit();
+    } catch (\Exception $ex) {
+      $this->rollBack();
+
+      return false;
+    }
+  }
+
+
+  /* sql helpers  ------------------------------------------------ */
 
   function select($table, $params = array()) {
 
@@ -186,11 +159,13 @@ class DB {
       'where' => null,
       'join' => null
     ];
+    $params = array_merge($defaults, $params);
 
+    list($where, $bindings) = DB\Util::where($params['where']);
 
-    list($where, $bindings) = self::_where($params['where']);
+    // TODO implementar JOIN
 
-    $sql = sprintf("SELECT %s FROM %s %s", $params['fields'], $table, $where);
+    $sql = sprintf("SELECT %s FROM %s WHERE %s", $params['fields'], $table, $where);
 
     $this->query($sql);
 
@@ -228,7 +203,7 @@ class DB {
 
     $changes = [];
 
-    list($where, $bindings) = $this->_where($where);
+    list($where, $bindings) = DB\Util::where($where);
 
     foreach ($data as $key => $value) {
       $changes[] = "$key = :update_$key";
@@ -239,7 +214,7 @@ class DB {
       throw new \Exception("Nothing to UPDATE");
     }
 
-    $sql = sprintf("UPDATE %s SET %s %s",
+    $sql = sprintf("UPDATE %s SET %s WHERE %s",
       $table,
       implode(", ", $changes),
       $where);
@@ -252,4 +227,31 @@ class DB {
 
     return $this->exec();
   }
+
+  function destroy($table, $where) {
+
+    list($where, $bindings) = DB\Util::where($where);
+
+    $sql = sprintf("DELETE FROM %s WHERE %s", $table, $where);
+
+    $this->query($sql);
+
+    foreach($bindings as $key => $value) {
+      $this->bind($key, $value);
+    }
+
+    return $this->exec();
+  }
+
+  /** DB Functions */
+
+  /**
+   * Returns a DB\Table helper for this table
+   * @param $table String the table name
+   * @return DB\Table
+   */
+  function table($table) {
+    return new DB\Table($this, $table);
+  }
+
 }
