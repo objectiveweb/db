@@ -1,5 +1,5 @@
 {
-	"name": "bravado/db",
+	"name": "objectiveweb/db",
 	"type": "library",
 	"description": "Database Abstraction Layer and Management Frontend",
 	"keywords": ["db", "sql", "ui" ],
@@ -7,20 +7,14 @@
 	"authors": [
 		{
 			"name": "Guilherme Barile",
-			"email": "gui@bravado.com.br",
 			"homepage": "https://guigouz.github.io"
-		},
-		{
-			"name": "Roberto Martins",
-			"email": "bob@bravado.com.br",
-			"homepage": "https://github.com/miles.chet"
 		}
 	],
 	"require": {
 		"php": ">=5.3.0",
-		"slim/slim": "2.*"
+		"objectiveweb/router": "~1.0"
 	},
 	"autoload": {
-		"psr-0": { "Bravado": "." }
+		"psr-4": { "Objectiveweb\\DB\\": "src/" }
 	}
 }
