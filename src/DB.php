@@ -5,229 +5,251 @@ use PDO;
 
 
 class DB {
-    public $pdo;
+  public $pdo;
 
-    /** @var \PDOStatement $stmt */
-    private $stmt;
+  public static $uri;
+  public static $username;
+  public static $password;
+  public static $options = array();
 
-    // Connection manager instances
-    private static $_db = [];
+  /** @var \PDOStatement $stmt */
+  private $stmt;
 
-    function __construct($uri, $username, $password, $options = array()) {
+  private static $_conn = [];
 
-        $defaults = [
-          PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-          PDO::ATTR_EMULATE_PREPARES => false
-        ];
+  function __construct($uri, $username, $password, $options = array()) {
 
-        $this->pdo = new PDO($uri, $username, $password, array_merge($defaults, $options));
+    $defaults = [
+      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_EMULATE_PREPARES => false
+    ];
+
+    $this->pdo = new PDO($uri, $username, $password, array_merge($defaults, $options));
+  }
+
+  public static function getInstance($uri = null, $username = null, $password = null, $options = array()) {
+    if(!$uri) {
+
+      $uri = DB::$uri;
+      $username = DB::$username;
+      $password = DB::$password;
+      $options = DB::$options;
+
     }
 
-   /* Query */
-   function query($query) {
-      $this->stmt = $this->pdo->prepare($query);
+    $id = md5($uri.$username.$password);
 
-      return $this;
-   }
+    if(!isset(DB::$_conn[$id])) {
+      DB::$_conn[$id] = new DB($uri, $username, $password, $options);
+    }
 
-   /* Transactions */
+    return DB::$_conn[$id];
+  }
 
-   function beginTransaction() {
-      return $this->pdo->beginTransaction();
-   }
+  /* Query */
+  function query($query) {
+    $this->stmt = $this->pdo->prepare($query);
 
-   function rollBack() {
-      return $this->pdo->rollBack();
-   }
+    return $this;
+  }
 
-   function commit() {
-      return $this->pdo->commit();
-   }
+  /* Transactions */
 
-   function transaction($callable) {
-      $this->beginTransaction();
+  function beginTransaction() {
+    return $this->pdo->beginTransaction();
+  }
 
-      try {
-         call_user_func($callable);
-         return $this->commit();
+  function rollBack() {
+    return $this->pdo->rollBack();
+  }
+
+  function commit() {
+    return $this->pdo->commit();
+  }
+
+  function transaction($callable) {
+    $this->beginTransaction();
+
+    try {
+      call_user_func($callable);
+      return $this->commit();
+    } catch (Exception $ex) {
+      $this->rollBack();
+
+      return false;
+    }
+  }
+
+  /**
+   *
+   * Binds $value to $pos
+   *
+   * from http://stackoverflow.com/a/6743773/164469
+   *
+   * @param $pos
+   * @param $value
+   * @param null $type
+   * @return $this
+   */
+  public function bind($pos, $value, $type = null) {
+    if (is_null($type)) {
+      switch (true) {
+        case is_int($value):
+          $type = PDO::PARAM_INT;
+          break;
+        case is_bool($value):
+          $type = PDO::PARAM_BOOL;
+          break;
+        case is_null($value):
+          $type = PDO::PARAM_NULL;
+          break;
+        default:
+          $type = PDO::PARAM_STR;
       }
-      catch(Exception $ex) {
-         $this->rollBack();
+    }
 
-         return false;
+    $this->stmt->bindValue($pos, $value, $type);
+    return $this;
+  }
+
+  /**
+   * Executes the current statement, returns the number of modified rows
+   *
+   */
+  function exec() {
+
+    $res = $this->stmt->execute();
+
+    if ($res !== false) {
+      return $this->stmt->rowCount();
+    } else {
+
+      throw new \Exception(json_encode($this->stmt->errorInfo()), $this->stmt->errorCode());
+    }
+  }
+
+  /**
+   * Fetches a row from a result set associated with the current Statement.
+   *
+   * @return Array
+   */
+  function fetch() {
+    $this->exec();
+    return $this->stmt->fetch(PDO::FETCH_ASSOC);
+  }
+
+  /**
+   * Returns an array containing all of the result set rows
+   *
+   * @return array
+   */
+  function all() {
+    $this->exec();
+    return $this->stmt->fetchAll(PDO::FETCH_ASSOC);
+  }
+
+  // argument helpers
+  private static function _encode($obj) {
+    return json_encode($obj);
+  }
+
+  private static function _where($args = null, $glue = "AND", $prefix = "WHERE ") {
+
+    if (!$args) {
+      return '';
+    }
+
+    $bindings = [];
+
+    if (is_array($args)) {
+      $cond = [];
+
+      // TODO suportar _and, _or
+      foreach ($args as $key => $value) {
+        $cond[] = "$key = :where_$key";
+        $bindings[":where_$key"] = $value;
       }
-   }
 
-    /**
-     *
-     * Binds $value to $pos
-     *
-     * from http://stackoverflow.com/a/6743773/164469
-     *
-     * @param $pos
-     * @param $value
-     * @param null $type
-     * @return $this
-     */
-    public function bind($pos, $value, $type = null) {
-        if (is_null($type)) {
-            switch (true) {
-                case is_int($value):
-                    $type = PDO::PARAM_INT;
-                    break;
-                case is_bool($value):
-                    $type = PDO::PARAM_BOOL;
-                    break;
-                case is_null($value):
-                    $type = PDO::PARAM_NULL;
-                    break;
-                default:
-                    $type = PDO::PARAM_STR;
-            }
-        }
-
-        $this->stmt->bindValue($pos, $value, $type);
-        return $this;
+      $args = implode(" $glue ", $cond);
     }
 
-    /**
-     * Executes the current statement, returns the number of modified rows
-     *
-     */
-    function exec() {
 
-        $res = $this->stmt->execute();
+    return ["$prefix$args", $bindings];
+  }
 
-        if ($res !== false) {
-            return $this->stmt->rowCount();
-        } else {
+  // sql helpers
 
-            throw new \Exception(json_encode($this->stmt->errorInfo()), $this->stmt->errorCode());
-        }
+  function select($table, $params = array()) {
+
+    $defaults = [
+      'fields' => '*',
+      'where' => null,
+      'join' => null
+    ];
+
+
+    list($where, $bindings) = self::_where($params['where']);
+
+    $sql = sprintf("SELECT %s FROM %s %s", $params['fields'], $table, $where);
+
+    $this->query($sql);
+
+    foreach ($bindings as $key => $value) {
+      $this->bind($key, $value);
     }
 
-    /**
-     * Fetches a row from a result set associated with the current Statement.
-     *
-     * @return Array
-     */
-    function fetch() {
-        $this->exec();
-        return $this->stmt->fetch(PDO::FETCH_ASSOC);
+    return $this;
+  }
+
+  /**
+   * Inserts $data into $table
+   *
+   * @param $table
+   * @param $data array [ field => value, ... ]
+   */
+  function insert($table, $data) {
+
+    $fields = array_keys($data);
+
+    $sql = "INSERT INTO " . $table . " (" . implode($fields, ", ") . ") VALUES (:" . implode($fields, ", :") . ");";
+
+    $this->query($sql);
+    foreach ($fields as $field) {
+      $this->bind(":$field", $data[$field]);
     }
 
-    /**
-     * Returns an array containing all of the result set rows
-     *
-     * @return array
-     */
-    function all() {
-        $this->exec();
-        return $this->stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $this->exec();
+
+    // TODO retornar lastinsertid ou NULL se não incluiu nenhum registro
+    return $rows;
+  }
+
+  function update($table, $data, $where = null) {
+
+    $changes = [];
+
+    list($where, $bindings) = $this->_where($where);
+
+    foreach ($data as $key => $value) {
+      $changes[] = "$key = :update_$key";
+      $bindings[":update_$key"] = $value;
     }
 
-    // argument helpers
-    private static function _encode($obj) {
-        return json_encode($obj);
+    if (empty($changes)) {
+      throw new \Exception("Nothing to UPDATE");
     }
 
-    private static function _where($args = null, $glue = "AND", $prefix = "WHERE ") {
+    $sql = sprintf("UPDATE %s SET %s %s",
+      $table,
+      implode(", ", $changes),
+      $where);
 
-        if (!$args) {
-            return '';
-        }
+    $this->query($sql);
 
-        $bindings = [];
-
-        if (is_array($args)) {
-            $cond = [];
-
-            // TODO suportar _and, _or
-            foreach ($args as $key => $value) {
-                $cond[] = "$key = :where_$key";
-                $bindings[":where_$key"] = $value;
-            }
-
-            $args = implode(" $glue ", $cond);
-        }
-
-
-        return ["$prefix$args", $bindings];
+    foreach ($bindings as $key => $value) {
+      $this->bind($key, $value);
     }
 
-    // sql helpers
-
-    function select($table, $params = array()) {
-
-        $defaults = [
-          'fields' => '*',
-          'where' => null,
-          'join' => null
-        ];
-
-
-        list($where, $bindings) = self::_where($params['where']);
-
-        $sql = sprintf("SELECT %s FROM %s %s", $params['fields'], $table, $where);
-
-        $this->query($sql);
-
-        foreach ($bindings as $key => $value) {
-            $this->bind($key, $value);
-        }
-
-        return $this;
-    }
-
-    /**
-     * Inserts $data into $table
-     *
-     * @param $table
-     * @param $data array [ field => value, ... ]
-     */
-    function insert($table, $data) {
-
-        $fields = array_keys($data);
-
-        $sql = "INSERT INTO " . $table . " (" . implode($fields, ", ") . ") VALUES (:" . implode($fields, ", :") . ");";
-
-        $this->query($sql);
-        foreach ($fields as $field) {
-            $this->bind(":$field", $data[$field]);
-        }
-
-        $rows = $this->exec();
-
-        // TODO retornar lastinsertid ou NULL se não incluiu nenhum registro
-        return $rows;
-    }
-
-    function update($table, $data, $where = null) {
-
-        $changes = [];
-
-        list($where, $bindings) = $this->_where($where);
-
-        foreach ($data as $key => $value) {
-            $changes[] = "$key = :update_$key";
-            $bindings[":update_$key"] = $value;
-        }
-
-        if (empty($changes)) {
-            throw new \Exception("Nothing to UPDATE");
-        }
-
-        $sql = sprintf("UPDATE %s SET %s %s",
-          $table,
-          implode(", ", $changes),
-          $where);
-
-        $this->query($sql);
-
-        foreach ($bindings as $key => $value) {
-            $this->bind($key, $value);
-        }
-
-        return $this->exec();
-    }
+    return $this->exec();
+  }
 }
