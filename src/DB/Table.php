@@ -2,41 +2,56 @@
 
 namespace Objectiveweb\DB;
 
-class Table {
+class Table
+{
 
-  /** @var \Objectiveweb\DB */
-  private $db;
+    /** @var \Objectiveweb\DB */
+    private $db;
 
-  /** @var String */
-  private $table;
+    private $pk;
 
-  public function __construct($db, $table) {
-    $this->db = $db;
-    $this->table = $table;
+    /** @var String */
+    private $table;
 
-    // TODO table metadata
+    public function __construct($db, $table, $pk = 'id')
+    {
+        $this->db = $db;
+        $this->table = $table;
+        $this->pk = 'id';
 
-  }
+        // TODO table metadata
 
-  /**
-   * @param $key
-   * @return mixed
-   */
-  public function get($key) {
-    return $this->db->select($this->table, array(
-      'where' => sprintf('id = %d', $key)
-    ))->fetch();
-  }
+    }
 
-  public function post($data) {
-    return $this->db->insert($this->table, $data);
-  }
+    /**
+     * @param $key
+     * @param array $params [ fields => * ]
+     * @return mixed
+     */
+    public function get($key, $params = array())
+    {
 
-  public function put($key, $data) {
-    return $this->db->update($this->table, $data, $key);
-  }
+        if (!is_array($key)) {
+            $key = sprintf('`%s` = %s', $pk, $this->db->escape($key));
+        }
 
-  public function destroy($key) {
-    return $this->db->destroy($this->table, $key);
-  }
+        $params['where'] = $key;
+
+        return $this->db->select($this->table, $params)->fetch();
+    }
+
+    public function post($data)
+    {
+        return $this->db->insert($this->table, $data);
+    }
+
+    public function put($key, $data)
+    {
+        return $this->db->update($this->table, $data, $key);
+    }
+
+    public function destroy($key)
+    {
+        return $this->db->destroy($this->table, $key);
+    }
 }

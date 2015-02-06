@@ -8,29 +8,31 @@
 namespace Objectiveweb\DB;
 
 
-class Util {
+class Util
+{
 
-  public static function where($args = null, $glue = "AND") {
+    public static function where($args = null, $glue = "AND")
+    {
 
-    if (!$args) {
-      return '';
+        if (!$args) {
+            return '';
+        }
+
+        $bindings = [];
+
+        if (is_array($args)) {
+            $cond = [];
+
+            // TODO suportar _and, _or
+            foreach ($args as $key => $value) {
+                $cond[] = "$key = :where_$key";
+                $bindings[":where_$key"] = $value;
+            }
+
+            $args = implode(" $glue ", $cond);
+        }
+
+
+        return [$args, $bindings];
     }
-
-    $bindings = [];
-
-    if (is_array($args)) {
-      $cond = [];
-
-      // TODO suportar _and, _or
-      foreach ($args as $key => $value) {
-        $cond[] = "$key = :where_$key";
-        $bindings[":where_$key"] = $value;
-      }
-
-      $args = implode(" $glue ", $cond);
-    }
-
-
-    return [$args, $bindings];
-  }
 }
