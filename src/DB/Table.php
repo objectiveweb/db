@@ -28,16 +28,17 @@ class Table
      * @param array $params [ fields => * ]
      * @return mixed
      */
-    public function get($key, $params = array())
+    public function get($key = null, $params = array())
     {
-
-        if (!is_array($key)) {
+        if ($key && !is_array($key)) {
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
         }
 
         $params['where'] = $key;
 
-        return $this->db->select($this->table, $params)->fetch();
+        $this->db->select($this->table, $params);
+
+        return $key ? $this->db->fetch() : $this->db->all();
     }
 
     public function post($data)

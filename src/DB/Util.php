@@ -14,13 +14,9 @@ class Util
     public static function where($args = null, $glue = "AND")
     {
 
-        if (!$args) {
-            return '';
-        }
-
         $bindings = [];
 
-        if (is_array($args)) {
+        if ($args && is_array($args)) {
             $cond = [];
 
             // TODO suportar _and, _or
