@@ -32,7 +32,7 @@ class Table
     {
 
         if (!is_array($key)) {
-            $key = sprintf('`%s` = %s', $pk, $this->db->escape($key));
+            $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
         }
 
         $params['where'] = $key;
