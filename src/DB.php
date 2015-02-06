@@ -180,7 +180,7 @@ class DB
 
         list($where, $bindings) = DB\Util::where($params['where']);
 
-        $sql = sprintf("SELECT %s FROM %s WHERE %s", $params['fields'], $table, !empty($where) ? 'WHERE '.$where : '');
+        $sql = sprintf("SELECT %s FROM %s %s", $params['fields'], $table, !empty($where) ? 'WHERE '.$where : '');
 
         $this->query($sql);
 
