@@ -18,7 +18,7 @@ class DB
 
     private static $_conn = [];
 
-    function __construct($uri, $username, $password, $options = array())
+    function __construct($uri, $username, $password = '', $options = array())
     {
 
         $defaults = [
@@ -164,6 +164,13 @@ class DB
 
     /* sql helpers  ------------------------------------------------ */
 
+    /**
+     * Performs a SELECT Query
+     * @param $table
+     * @param array $params
+     * @return $this
+     * @throws \Exception
+     */
     function select($table, $params = array())
     {
 
@@ -245,6 +252,14 @@ class DB
         return $this->exec();
     }
 
+    /**
+     * Performs a DELETE query, returns number of affected rows
+     *
+     * @param $table table name
+     * @param $where condition
+     * @return int Number of affected rows
+     * @throws \Exception
+     */
     function destroy($table, $where)
     {
 
