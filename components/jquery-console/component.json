@@ -1,9 +1,0 @@
-{
-  "name": "jquery-console",
-  "version": "0.0.0",
-  "commit": "c1d325a79cccaa34653bc62c20c358226804ca7d",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/chrisdone/jquery-console.git"
-  }
-}
