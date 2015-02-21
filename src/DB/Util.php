@@ -14,14 +14,14 @@ class Util
     public static function where($args = null, $glue = "AND")
     {
 
-        $bindings = [];
+        $bindings = null;
 
         if ($args && is_array($args)) {
             $cond = [];
 
             // TODO suportar _and, _or
             foreach ($args as $key => $value) {
-                $cond[] = "$key = :where_$key";
+                $cond[] = sprintf("`%s` %s :where_%s", $key, is_null($value) ? 'is' : '=', $key);
                 $bindings[":where_$key"] = $value;
             }
 

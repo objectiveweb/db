@@ -6,17 +6,13 @@ use PDO;
 
 class DB
 {
+    /** @var \PDO  */
     public $pdo;
 
-    public static $uri;
-    public static $username;
-    public static $password;
-    public static $options = array();
+    public $error = null;
 
     /** @var \PDOStatement $stmt */
     private $stmt;
-
-    private static $_conn = [];
 
     function __construct($uri, $username, $password = '', $options = array())
     {
@@ -29,29 +25,15 @@ class DB
         $this->pdo = new PDO($uri, $username, $password, array_merge($defaults, $options));
     }
 
-    public static function getInstance($uri = null, $username = null, $password = null, $options = array())
-    {
-        if (!$uri) {
-
-            $uri = DB::$uri;
-            $username = DB::$username;
-            $password = DB::$password;
-            $options = DB::$options;
-
-        }
-
-        $id = md5($uri . $username . $password);
-
-        if (!isset(DB::$_conn[$id])) {
-            DB::$_conn[$id] = new DB($uri, $username, $password, $options);
-        }
-
-        return DB::$_conn[$id];
-    }
-
-    /* Query */
+    /**
+     * Prepares a query
+     *
+     * @param $query
+     * @return $this
+     */
     function query($query)
     {
+        $this->error = null;
         $this->stmt = $this->pdo->prepare($query);
 
         return $this;
@@ -86,18 +68,20 @@ class DB
             }
         }
 
-        $this->stmt->bindValue($pos, $value, $type);
+        $this->stmt->bindValue(":$pos", $value, $type);
+
         return $this;
     }
 
     /**
      * Executes the current statement, returns the number of modified rows
      *
+     * @param array $bindings
+     * @throws \Exception when an error occurs
      */
-    function exec()
+    function exec($bindings = null)
     {
-
-        $res = $this->stmt->execute();
+        $res = $this->stmt->execute($bindings);
 
         if ($res !== false) {
             return $this->stmt->rowCount();
@@ -114,7 +98,6 @@ class DB
      */
     function fetch()
     {
-        $this->exec();
         return $this->stmt->fetch(PDO::FETCH_ASSOC);
     }
 
@@ -125,7 +108,6 @@ class DB
      */
     function all()
     {
-        $this->exec();
         return $this->stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -152,11 +134,11 @@ class DB
         $this->beginTransaction();
 
         try {
-            call_user_func($callable);
+            call_user_func($callable, $this);
             return $this->commit();
         } catch (\Exception $ex) {
             $this->rollBack();
-
+            $this->error = $ex;
             return false;
         }
     }
@@ -167,17 +149,18 @@ class DB
     /**
      * Performs a SELECT Query
      * @param $table
+     * @param $where array [ field => value ] or string
      * @param array $params
      * @return $this
      * @throws \Exception
      */
-    function select($table, $params = array())
+    function select($table, $where = null, $params = array())
     {
 
         $defaults = [
-            'fields' => '*',
-            'where' => null
+            'fields' => '*'
         ];
+
         $params = array_merge($defaults, $params);
 
         // TODO implementar JOIN
@@ -185,15 +168,16 @@ class DB
             throw new \Exception('not implemented');
         }
 
-        list($where, $bindings) = DB\Util::where($params['where']);
+        list($where, $bindings) = DB\Util::where($where);
 
-        $sql = sprintf("SELECT %s FROM %s %s", $params['fields'], $table, !empty($where) ? 'WHERE '.$where : '');
+        $sql = sprintf("SELECT %s FROM `%s` %s",
+            $params['fields'],
+            $table,
+            !empty($where) ? 'WHERE '.$where : '');
 
         $this->query($sql);
 
-        foreach ($bindings as $key => $value) {
-            $this->bind($key, $value);
-        }
+        $this->exec($bindings);
 
         return $this;
     }
@@ -203,6 +187,7 @@ class DB
      *
      * @param $table
      * @param $data array [ field => value, ... ]
+     * @return $id int Last Insert ID or NULL if no rows where changed
      */
     function insert($table, $data)
     {
@@ -213,13 +198,12 @@ class DB
 
         $this->query($sql);
         foreach ($fields as $field) {
-            $this->bind(":$field", $data[$field]);
+            $this->bind($field, $data[$field]);
         }
 
         $rows = $this->exec();
 
-        // TODO retornar lastinsertid ou NULL se não incluiu nenhum registro
-        return $rows;
+        return ($rows === 0) ? NULL : $this->pdo->lastInsertId();
     }
 
     function update($table, $data, $where = null)
@@ -245,11 +229,7 @@ class DB
 
         $this->query($sql);
 
-        foreach ($bindings as $key => $value) {
-            $this->bind($key, $value);
-        }
-
-        return $this->exec();
+        return $this->exec($bindings);
     }
 
     /**
@@ -269,11 +249,7 @@ class DB
 
         $this->query($sql);
 
-        foreach ($bindings as $key => $value) {
-            $this->bind($key, $value);
-        }
-
-        return $this->exec();
+        return $this->exec($bindings);
     }
 
     /** DB Functions */

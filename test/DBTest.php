@@ -12,56 +12,76 @@ use Objectiveweb\DB;
 class DBTest extends PHPUnit_Framework_TestCase {
 
     /** @var  DB */
-    protected $db;
+    static protected $db;
 
-    protected function setUp() {
-        $this->db = new DB('mysql:dbname=objectiveweb;host=192.168.56.101', 'root');
-    }
+    public static function setUpBeforeClass() {
+        self::$db = new DB('mysql:dbname=objectiveweb;host=192.168.56.101', 'root');
+        self::$db->query('drop table if exists db_test')->exec();
 
-    public function testSetup() {
-
-        $this->db->query('drop table if exists db_test');
-
-        $this->assertNotFalse($this->db->exec());
-
-        $this->db->query('create table db_test
+        self::$db->query('create table db_test
             (`id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                `name` VARCHAR(255));');
-
-        $this->assertNotFalse($this->db->exec());
-
+                `name` VARCHAR(255));')->exec();
     }
 
     public function testInsert() {
-        $r = $this->db->insert('db_test', [ 'name' => 'test']);
+        $r = self::$db->insert('db_test', [ 'name' => 'test']);
 
-        $this->assertNotFalse($r);
+        $this->assertEquals(1, $r);
+
+        $r = self::$db->insert('db_test', [ 'name' => 'test1']);
+
+        $this->assertEquals(2, $r);
+
+        $r = self::$db->insert('db_test', [ 'name' => 'test2']);
+
+        $this->assertEquals(3, $r);
+
+        $r = self::$db->insert('db_test', [ 'name' => 'test3']);
+
+        $this->assertEquals(4, $r);
     }
 
     public function testSelectAll() {
-        $rows = $this->db->select('db_test')->all();
+        $rows = self::$db->select('db_test')->all();
 
-        $this->assertEquals(1, count($rows));
+        $this->assertEquals(4, count($rows));
         $this->assertEquals('test', $rows[0]['name']);
     }
 
     public function testUpdate() {
-        $r = $this->db->update('db_test', ['name' => 'test1'], [ 'name' => 'test']);
+        $r = self::$db->update('db_test', ['name' => 'test4'], [ 'name' => 'test1']);
 
-        $this->assertNotFalse($r);
+        $this->assertEquals(1, $r);
     }
 
 
     public function testSelectFetch() {
-        $r = $this->db->select('db_test', [ 'name' => 'test1' ])->fetch();
+        $r = self::$db->select('db_test',[ 'name' => 'test4' ])->fetch();
 
-        $this->assertEquals('test1', $r['name']);
+        $this->assertEquals('test4', $r['name']);
 
     }
 
-    public function testDelete() {
-        $r = $this->db->destroy('db_test', ['name' => 'test1']);
+    public function testSelectEmptyResults() {
+        $r = self::$db->select('db_test',[ 'name' => 'test5' ])->all();
 
+        $this->assertEmpty(count($r));
+
+    }
+
+    // TODO test select with null WHERE parameter
+    public function testDelete() {
+        $rows = self::$db->select('db_test')->all();
+        $this->assertEquals(count($rows), 4);
+
+        $r = self::$db->destroy('db_test', ['name' => 'test1']);
+        $this->assertEquals(0, $r);
+
+        $r = self::$db->destroy('db_test', ['name' => 'test4']);
         $this->assertEquals(1, $r);
+
+        $rows = self::$db->select('db_test')->all();
+        $this->assertEquals(count($rows), 3);
+
     }
 }

@@ -17,7 +17,7 @@ class Table
     {
         $this->db = $db;
         $this->table = $table;
-        $this->pk = 'id';
+        $this->pk = $pk;
 
         // TODO table metadata
 
@@ -34,9 +34,7 @@ class Table
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
         }
 
-        $params['where'] = $key;
-
-        $this->db->select($this->table, $params);
+        $this->db->select($this->table, $key, $params);
 
         return $key ? $this->db->fetch() : $this->db->all();
     }
@@ -48,11 +46,19 @@ class Table
 
     public function put($key, $data)
     {
+        if(!is_array($key)) {
+            $key = [ $this->pk => $key];
+        }
+
         return $this->db->update($this->table, $data, $key);
     }
 
     public function destroy($key)
     {
+        if(!is_array($key)) {
+            $key = [ $this->pk => $key];
+        }
+
         return $this->db->destroy($this->table, $key);
     }
 }
