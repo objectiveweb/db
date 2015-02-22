@@ -32,11 +32,13 @@ class Table
     {
         if ($key && !is_array($key)) {
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
+            $this->db->select($this->table, $key, $params);
+            return $this->db->fetch();
         }
-
-        $this->db->select($this->table, $key, $params);
-
-        return $key ? $this->db->fetch() : $this->db->all();
+        else {
+            $this->db->select($this->table, $key, $params);
+            return $this->db->all();
+        }
     }
 
     public function post($data)

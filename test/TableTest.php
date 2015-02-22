@@ -58,7 +58,6 @@ class TableTest extends PHPUnit_Framework_TestCase
     }
 
 
-
     public function testUpdate()
     {
         $r = self::$table->put(['name' => 'test1'], ['name' => 'test4']);
@@ -71,7 +70,8 @@ class TableTest extends PHPUnit_Framework_TestCase
     {
         $r = self::$table->get(['name' => 'test4']);
 
-        $this->assertEquals('test4', $r['name']);
+        $this->assertNotEmpty($r);
+        $this->assertEquals('test4', $r[0]['name']);
 
     }
 
@@ -83,11 +83,24 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     }
 
+    public function testUpdateKey() {
+        $r = self::$table->put(3, [ 'name' => 'test2.1']);
+
+        $this->assertEquals(1, $r);
+    }
+
+    public function testSelectKey() {
+        $r = self::$table->get(3);
+
+        $this->assertEquals('test2.1', $r['name']);
+    }
+
     public function testSelectNull()
     {
         $r = self::$table->get(['name' => null]);
 
-        $this->assertEquals(5, $r['id']);
+        $this->assertEquals(1, count($r));
+        $this->assertEquals(5, $r[0]['id']);
     }
 
     public function testDelete()
