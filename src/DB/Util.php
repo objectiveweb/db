@@ -17,7 +17,8 @@ class Util
         $bindings = null;
 
         if ($args && is_array($args)) {
-            $cond = [];
+            $cond = array();
+            $bindings = array();
 
             // TODO suportar _and, _or
             foreach ($args as $key => $value) {
@@ -29,6 +30,6 @@ class Util
         }
 
 
-        return [$args, $bindings];
+        return array( $args, $bindings );
     }
 }

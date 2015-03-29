@@ -32,12 +32,12 @@ class Table
     {
         if ($key && !is_array($key)) {
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
-            $this->db->select($this->table, $key, $params);
-            return $this->db->fetch();
+            $query = $this->db->select($this->table, $key, $params);
+            return $query->fetch();
         }
         else {
-            $this->db->select($this->table, $key, $params);
-            return $this->db->all();
+            $query = $this->db->select($this->table, $key, $params);
+            return $query->all();
         }
     }
 
@@ -49,7 +49,7 @@ class Table
     public function put($key, $data)
     {
         if(!is_array($key)) {
-            $key = [ $this->pk => $key];
+            $key = array( $this->pk => $key );
         }
 
         return $this->db->update($this->table, $data, $key);
@@ -58,7 +58,7 @@ class Table
     public function destroy($key)
     {
         if(!is_array($key)) {
-            $key = [ $this->pk => $key];
+            $key = array( $this->pk => $key );
         }
 
         return $this->db->destroy($this->table, $key);
