@@ -81,22 +81,59 @@ class DB
     {
 
         $defaults = array(
-            'fields' => '*'
+            'fields' => '*',
+            'group' => NULL,
+            'order' => NULL,
+            'limit' => NULL,
+            'offset' => 0
         );
 
         $params = array_merge($defaults, $params);
 
-        // TODO implementar JOIN
         if(is_array($table)) {
             throw new \Exception('not implemented');
+        }
+        else {
+            $join = '';
+        }
+
+        if(is_array($params['fields'])) {
+            throw new \Exception('not implemented');
+        }
+        else {
+            $fields = $params['fields'];
         }
 
         list($where, $bindings) = DB\Util::where($where);
 
-        $sql = sprintf("SELECT %s FROM `%s` %s",
-            $params['fields'],
+        $sql = sprintf("SELECT %s FROM `%s` %s %s",
+            $fields,
             $table,
+            $join,
             !empty($where) ? 'WHERE '.$where : '');
+
+        if($params['group']) {
+            if(is_array($params['group'])) {
+                throw new \Exception('not implemented');
+            }
+            else {
+                $sql .= sprintf(' GROUP BY %s', $params['group']);
+            }
+        }
+
+        if($params['order']) {
+            if(is_array($params['order'])) {
+                throw new \Exception('not implemented');
+            }
+            else {
+                $sql .= sprintf(' ORDER BY %s', $params['order']);
+            }
+        }
+
+        if($params['limit']) {
+            $sql .= sprintf(' LIMIT %d,%d', $params['offset'], $params['limit']);
+        }
+
 
         $query = $this->query($sql);
 
