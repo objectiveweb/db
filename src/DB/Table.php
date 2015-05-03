@@ -13,6 +13,14 @@ class Table
     /** @var String */
     private $table;
 
+    /**
+     * Table is a controller for a DB table
+     * Usually instantiated via $db->table('tablename' [, 'id']);
+     *
+     * @param \Objectiveweb\DB $db DB instance
+     * @param string $table table name
+     * @param string $pk Optional Primary Key, defaults to 'id'
+     */
     public function __construct($db, $table, $pk = 'id')
     {
         $this->db = $db;
@@ -24,13 +32,22 @@ class Table
     }
 
     /**
-     * @param $key
-     * @param array $params [ fields => * ]
+     * Retrieves records from table
+     *
+     * get($key, $params = array())
+     *  Returns row with key $key, with optional select $params
+     *
+     * get($query = array(), $params = array())
+     *  Returns a list of rows matching $query, with optional select $params
+     *  If $query contains fields named _*, they are mapped to params
+     *
+     * @param mixed $key
+     * @param array $params
      * @return mixed
      */
     public function get($key = null, $params = array())
     {
-        if($key && !is_array($key)) {
+        if(!empty($key) && !is_array($key)) {
             // get single
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
             $query = $this->db->select($this->table, $key, $params);
@@ -38,19 +55,21 @@ class Table
 
         }
         else {
-            // fetch
-            $_params = array();
 
-            foreach($params as $param => $value) {
-                if($param[0] == '_') {
-                    $_params[substr($param, 1)] = $value;
+            if(is_array($key)) {
+
+                // filter _* fields as params
+                foreach($key as $field => $value) {
+                    if($field[0] == '_') {
+                        $params[substr($field, 1)] = $value;
+                        unset($key[$field]);
+                    }
                 }
-                else {
-                    $key[$param] = $value;
-                }
+
             }
 
-            $query = $this->db->select($this->table, $key, $_params);
+            $query = $this->db->select($this->table, $key, $params);
+
             return $query->all();
         }
     }

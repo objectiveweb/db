@@ -251,11 +251,12 @@ class DB
     /**
      * Returns a DB\Table helper for this table
      * @param $table String the table name
+     * @param string $pk Optional Primary Key, defaults to 'id'
      * @return DB\Table
      */
-    function table($table)
+    function table($table, $pk = 'id')
     {
-        return new DB\Table($this, $table);
+        return new DB\Table($this, $table, $pk);
     }
 
     function escape($string)
