@@ -12,10 +12,38 @@ class DB
 
     public $error = null;
 
-    /** @var  $stmt */
-    private $stmt;
-
-    function __construct($uri, $username, $password = '', $options = array())
+    /**
+     * Creates a new DB instance
+     *
+     * @param string $dsn driver:dbname=name;host=127.0.0.1;charset=utf8
+     *
+     *  The Data Source Name, or DSN, contains the information required to connect to the database.
+     *
+     *    In general, a DSN consists of the PDO driver name, followed by a colon, followed by the PDO driver-specific connection syntax. Further information is available from the PDO driver-specific documentation.
+     *
+     *    The dsn parameter supports three different methods of specifying the arguments required to create a database connection:
+     *
+     *    Driver invocation
+     *    dsn contains the full DSN.
+     *
+     *    URI invocation
+     *    dsn consists of uri: followed by a URI that defines the location of a file containing the DSN string. The URI can specify a local file or a remote URL.
+     *
+     *    uri:file:///path/to/dsnfile
+     *
+     *    Aliasing
+     *    dsn consists of a name name that maps to pdo.dsn.name in php.ini defining the DSN string.
+     *
+     * @param string $username
+     *  The user name for the DSN string. This parameter is optional for some PDO drivers.
+     *
+     * @param string $password
+     *  The password for the DSN string. This parameter is optional for some PDO drivers.
+     *
+     * @param array $options
+     *  PDO key=>value array of driver-specific connection options.
+     */
+    function __construct($dsn, $username, $password = '', $options = array())
     {
 
         $defaults = array(
@@ -23,7 +51,7 @@ class DB
             PDO::ATTR_EMULATE_PREPARES => false
         );
 
-        $this->pdo = new PDO($uri, $username, $password, array_merge($defaults, $options));
+        $this->pdo = new PDO($dsn, $username, $password, array_merge($defaults, $options));
     }
 
     function query($query) {
@@ -73,8 +101,14 @@ class DB
      * Performs a SELECT Query
      * @param $table
      * @param $where array [ field => value ] or string
-     * @param array $params
-     * @return $this
+     * @param array $params [ key => value ]
+     *  fields => '*'
+     *  group => null
+     *  order => null
+     *  limit => null
+     *  offset => 0
+     *
+     * @return \Objectiveweb\DB\Query
      * @throws \Exception
      */
     function select($table, $where = null, $params = array())
@@ -195,8 +229,8 @@ class DB
     /**
      * Performs a DELETE query, returns number of affected rows
      *
-     * @param $table table name
-     * @param $where condition
+     * @param string $table table name
+     * @param mixed $where condition
      * @return int Number of affected rows
      * @throws \Exception
      */

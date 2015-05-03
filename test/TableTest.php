@@ -69,7 +69,6 @@ class TableTest extends PHPUnit_Framework_TestCase
     public function testSelectFetch()
     {
         $r = self::$table->get(['name' => 'test4']);
-
         $this->assertNotEmpty($r);
         $this->assertEquals('test4', $r[0]['name']);
 
