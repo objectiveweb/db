@@ -51,8 +51,12 @@ class Table
             // get single
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
             $query = $this->db->select($this->table, $key, $params);
-            return $query->fetch();
 
+            if(!$rsrc = $query->fetch()) {
+                throw new \Exception('Record not found', 404);
+            }
+
+            return $rsrc;
         }
         else {
 
