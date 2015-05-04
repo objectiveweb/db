@@ -102,7 +102,9 @@ class DB
      * @param $table
      * @param $where array [ field => value ] or string
      * @param array $params [ key => value ]
-     *  fields => '*'
+     *  fields => comma-separated string or array.
+     *   Non-numeric keys are used as field names, for example
+     *   $fields = array( 'id', 'name', 'total' => 'COUNT(*)' );
      *  group => null
      *  order => null
      *  limit => null
@@ -131,17 +133,36 @@ class DB
             $join = '';
         }
 
-        if(is_array($params['fields'])) {
-            throw new \Exception('not implemented');
+        if(!is_array($params['fields'])) {
+            $_fields = explode(",", $params['fields']);
         }
         else {
-            $fields = $params['fields'];
+            $_fields = $params['fields'];
+        }
+
+        $fields = array();
+
+        foreach($_fields as $k => $v) {
+
+            // Allow * and functions
+            if(preg_match('/(\*|[A-Z]+\([^\)]+\)|[a-z]+\([^\)]+\))/', $v)) {
+                $r = str_replace('`', '``', $v);
+            }
+            else {
+                $r = "`".str_replace('`', '``', $v)."`";
+            }
+
+            if(!is_numeric($k)) {
+                $r .= sprintf(" as `%s`", str_replace('`', '``', $k));
+            }
+
+            $fields[] = $r;
         }
 
         list($where, $bindings) = DB\Util::where($where);
 
         $sql = sprintf("SELECT %s FROM `%s` %s %s",
-            $fields,
+            implode(", ", $fields),
             $table,
             $join,
             !empty($where) ? 'WHERE '.$where : '');
