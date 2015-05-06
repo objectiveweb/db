@@ -86,6 +86,23 @@ class Query {
     }
 
 
+    /**
+     * Returns an associative array with all the result set rows mapped by $field
+     * @param string $field the field to index
+     */
+    function map($field) {
+        $map = array();
+
+        while($row = $this->stmt->fetch(PDO::FETCH_ASSOC)) {
+            if(!isset($row[$field])) {
+                throw new \Exception("Invalid field $field", 500);
+            }
+
+            $map[$row[$field]] = $row;
+        }
+
+        return $map;
+    }
 
 
 }
