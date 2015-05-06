@@ -163,7 +163,7 @@ class DB
             $fields[] = $r;
         }
 
-        list($where, $bindings) = DB\Util::where($where);
+        list($where, $bindings) = $this->_where($where);
 
         $sql = sprintf("SELECT %s FROM `%s` %s %s",
             implode(", ", $fields),
@@ -230,7 +230,7 @@ class DB
 
         $changes = array();
 
-        list($where, $bindings) = DB\Util::where($where);
+        list($where, $bindings) = $this->_where($where);
 
         foreach ($data as $key => $value) {
             $changes[] = "$key = :update_$key";
@@ -262,13 +262,43 @@ class DB
     function destroy($table, $where)
     {
 
-        list($where, $bindings) = DB\Util::where($where);
+        list($where, $bindings) = $this->_where($where);
 
         $sql = sprintf("DELETE FROM %s WHERE %s", $table, $where);
 
         $query = $this->query($sql);
 
         return $query->exec($bindings);
+    }
+
+    private function _where($args = null, $glue = "AND")
+    {
+
+        $bindings = null;
+
+        if ($args && is_array($args)) {
+            $cond = array();
+            $bindings = array();
+
+            // TODO suportar _and, _or
+            foreach ($args as $key => $value) {
+                if(is_array($value)) {
+                    // TODO quote array values
+                    $cond[] = sprintf("`%s` IN (%s)", str_replace('`', '``', $key), implode(",", array_map(function($v) {
+                        return $this->escape($v);
+                    }, $value)));
+                }
+                else {
+                    $cond[] = sprintf("`%s` %s :where_%s", str_replace('`', '``', $key), is_null($value) ? 'is' : '=', $key);
+                    $bindings[":where_$key"] = $value;
+                }
+            }
+
+            $args = implode(" $glue ", $cond);
+        }
+
+
+        return array( $args, $bindings );
     }
 
     /** DB Functions */
