@@ -27,6 +27,10 @@ class DB
     }
 
     function query($query) {
+        if (func_num_args() > 1) {
+            $query = call_user_func_array('sprintf', func_get_args());
+        }
+
         $stmt = $this->pdo->prepare($query);
 
         return new Query($stmt);
