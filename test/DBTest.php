@@ -17,7 +17,7 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     public static function setUpBeforeClass()
     {
-        self::$db = new DB('mysql:dbname=objectiveweb;host=192.168.56.101', 'root');
+        self::$db = new DB('mysql:dbname=objectiveweb;host=127.0.0.1', 'root');
         self::$db->query('drop table if exists db_test')->exec();
 
         self::$db->query('create table db_test
@@ -27,23 +27,23 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     public function testInsert()
     {
-        $r = self::$db->insert('db_test', ['name' => 'test']);
+        $r = self::$db->insert('db_test', array('name' => 'test'));
 
         $this->assertEquals(1, $r);
 
-        $r = self::$db->insert('db_test', ['name' => 'test1']);
+        $r = self::$db->insert('db_test', array('name' => 'test1'));
 
         $this->assertEquals(2, $r);
 
-        $r = self::$db->insert('db_test', ['name' => 'test2']);
+        $r = self::$db->insert('db_test', array('name' => 'test2'));
 
         $this->assertEquals(3, $r);
 
-        $r = self::$db->insert('db_test', ['name' => 'test3']);
+        $r = self::$db->insert('db_test', array('name' => 'test3'));
 
         $this->assertEquals(4, $r);
 
-        $r = self::$db->insert('db_test', ['name' => null]);
+        $r = self::$db->insert('db_test', array('name' => null));
 
         $this->assertEquals(5, $r);
 

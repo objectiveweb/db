@@ -1,24 +1,84 @@
-Bravado DB
+Objectiveweb DB
 ==========
 
-Proof-of-concept Database abstraction layer and management interface
+Database abstraction layer
 
 Getting Started
 ---------------
 
-  * Visit /login.php fill database details and username/login
-  * Now visit /api.php
-    * GET api.php - Lists databases
-    * GET api.php/database - Lists "database" tables
-    * GET api.php/database/table - Lists all records from "table" on database "database"
-    * GET api.php/database/table/id - Retrieves a particular record from the database
-    * OPTIONS api.php/database/table - Shows the table structure (DESCRIBE table)
-  * login.php/logout logs you out
+    use Objectiveweb\DB;
+
+    $db = new DB('pdo uri', 'username', 'password');
+
+    // general queries
+    $db->query('create table ...')->exec();
+
+    // insert
+    $insert_id = $db->insert('table', array('field' => 'value', 'otherfield' => 'value'));
+
+    // update (table, values, conditions)
+    $affected_rows = $db->update('table', array('field' => 'newvalue', ...), array('field' => 'value'));
+
+    // select all rows
+    // returns array ( row1, row2, ...)
+    $rows = $db->select('table')->all();
+
+    // map results by field
+    // returns associative array { 'row1_field_value' => row1, 'row2_field_value' => row2, ...)
+    $rows = $db->select('table')->map('field');
+
+    // select IN
+    $rows = $db->select('table', array('ID' => array( 1, 2, 3))->all();
+
+    // fetch row by row
+    $query = $db->select('table');
+
+    while($row = $query->fetch()) {
+        // process $row
+    }
+
+    // delete (table, conditions)
+    $db->destroy('table', array('field' => 'value'));
+
+Table Controller
+----------------
+
+    use Objectiveweb\DB;
+
+    $db = new DB(...);
+
+    $table = $db->table('tablename');
+
+    // Insert
+    $id = $table->post(array('field' => 'value', ...);
+
+    // Select all rows
+    $rows = $table->get();
+
+    // Update (key, values)
+    $affected_rows = $table->put(array('name' = 'new name'), array('name' => 'old name'));
+
+    // Update by ID
+    $affected_rows = $table->put(id, array('field' => 'new value'));
+
+
+Extending DB\Table
+------------------
+
+    class MyTable extends Objectiveweb\DB\Table {
+        var $table = 'table_name';
+        var $pk = 'id';
+    }
+
+    // then, instantiate it
+    $table = $db->table('MyTable');
+
+    $table->post(array('name' => 'new item'));
 
 TODO
 ----
 
-  * Review the API - is it ok/sane ?
+  * Management Interface: Review the API - is it ok/sane ?
     * Parameters should follow the sql syntax (json-encoded?)
   * Write tests!
   * Code the DB Class (DB/Table, DB/Query ?)

@@ -7,7 +7,12 @@ include dirname(__DIR__) . '/vendor/autoload.php';
 use Objectiveweb\DB;
 use Objectiveweb\DB\Table;
 
-class TableTest extends PHPUnit_Framework_TestCase
+
+class DbTestTable extends DB\Table {
+    protected $table = 'db_test';
+}
+
+class TableInheritanceTest extends PHPUnit_Framework_TestCase
 {
     /** @var  Table */
     static protected $table;
@@ -21,7 +26,7 @@ class TableTest extends PHPUnit_Framework_TestCase
             (`id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
                 `name` VARCHAR(255));')->exec();
 
-        self::$table = $db->table('db_test');
+        self::$table = $db->table('DbTestTable');
     }
 
     public function testInsert()

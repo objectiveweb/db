@@ -311,7 +311,12 @@ class DB
      */
     function table($table, $pk = 'id')
     {
-        return new DB\Table($this, $table, $pk);
+        if(class_exists("\\".$table) && is_subclass_of($table, 'Objectiveweb\DB\Table')) {
+            return new $table($this);
+        }
+        else {
+            return new DB\Table($this, $table, $pk);
+        }
     }
 
     function escape($string)

@@ -8,10 +8,10 @@ class Table
     /** @var \Objectiveweb\DB */
     private $db;
 
-    private $pk;
+    protected $pk = null;
 
     /** @var String */
-    private $table;
+    protected $table = null;
 
     /**
      * Table is a controller for a DB table
@@ -21,11 +21,17 @@ class Table
      * @param string $table table name
      * @param string $pk Optional Primary Key, defaults to 'id'
      */
-    public function __construct($db, $table, $pk = 'id')
+    public function __construct($db, $table = null, $pk = 'id')
     {
         $this->db = $db;
-        $this->table = $table;
-        $this->pk = $pk;
+
+        if(!$this->table) {
+            $this->table = $table;
+        }
+
+        if(!$this->pk) {
+            $this->pk = $pk;
+        }
 
         // TODO table metadata
 
