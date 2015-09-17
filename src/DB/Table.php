@@ -6,7 +6,7 @@ class Table
 {
 
     /** @var \Objectiveweb\DB */
-    private $db;
+    protected $db;
 
     protected $pk = null;
 

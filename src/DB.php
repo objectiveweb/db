@@ -311,7 +311,8 @@ class DB
      */
     function table($table, $pk = 'id')
     {
-        if(class_exists("\\".$table) && is_subclass_of($table, 'Objectiveweb\DB\Table')) {
+        if(class_exists($table) && is_subclass_of($table, 'Objectiveweb\DB\Table')) {
+
             return new $table($this);
         }
         else {
