@@ -38,6 +38,17 @@ class Table
     }
 
     /**
+     * Wraps DB::select for this table
+     * @param mixed $where conditions
+     * @param array $params SELECT parameters
+     * @return Query
+     * @throws \Exception
+     */
+    public function select($where = null, $params = array()) {
+        return $this->db->select($this->table, $where, $params);
+    }
+
+    /**
      * Retrieves records from table
      *
      * get($key, $params = array())
@@ -51,12 +62,12 @@ class Table
      * @param array $params
      * @return mixed
      */
-    public function get($key = null, $params = array())
+    public function get($key = null)
     {
         if(!empty($key) && !is_array($key)) {
             // get single
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
-            $query = $this->db->select($this->table, $key, $params);
+            $query = $this->db->select($this->table, $key);
 
             if(!$rsrc = $query->fetch()) {
                 throw new \Exception('Record not found', 404);
@@ -65,22 +76,56 @@ class Table
             return $rsrc;
         }
         else {
+            // get collection
+
+            $page = 0;
+            $size = 20;
+            $sort = '';
 
             if(is_array($key)) {
 
-                // filter _* fields as params
-                foreach($key as $field => $value) {
-                    if($field[0] == '_') {
-                        $params[substr($field, 1)] = $value;
-                        unset($key[$field]);
-                    }
+
+                if(isset($key['page'])) {
+                    $page = intval($key['page']);
+                    unset($key['page']);
                 }
 
+                if(isset($key['size'])) {
+                    $size = intval($key['size']);
+                    unset($key['size']);
+                }
+
+                if(isset($key['sort'])) {
+                    $sort = $key['sort'];
+                    unset($key['sort']);
+                }
             }
 
-            $query = $this->db->select($this->table, $key, $params);
+            // $params => page, size, sort
+            $params = array(
 
-            return $query->all();
+                'fields' => 'SQL_CALC_FOUND_ROWS', // TODO suportar isso em DB
+                'limit' => $size,
+                'offset' => $page * $size,
+                'sort' => $sort
+            );
+
+            $query = $this->select($key, $params);
+
+            // TODO pegar contagem
+            $count = 0;
+
+            return array(
+                '_embedded' => array(
+                    $this->table => $query->all()
+                ),
+                'page' => array(
+                    'size' => $size,
+                    'number' => $page,
+                    'totalElements' => $count,
+                    'totalPages' => ceil($count / $size)
+                )
+            );
         }
     }
 
