@@ -7,6 +7,7 @@ use PDO;
 class Query {
 
     var $stmt;
+    var $sql = null;
 
     function __construct($stmt) {
         $this->error = null;

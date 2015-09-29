@@ -10,6 +10,8 @@ class DB
     /** @var \PDO  */
     public $pdo;
 
+    private $debug = false;
+
     public $error = null;
 
     /**
@@ -54,14 +56,20 @@ class DB
         $this->pdo = new PDO($dsn, $username, $password, array_merge($defaults, $options));
     }
 
-    function query($query) {
+    function query($sql) {
         if (func_num_args() > 1) {
-            $query = call_user_func_array('sprintf', func_get_args());
+            $sql = call_user_func_array('sprintf', func_get_args());
         }
 
-        $stmt = $this->pdo->prepare($query);
+        $stmt = $this->pdo->prepare($sql);
 
-        return new Query($stmt);
+        $query = new Query($stmt);
+
+        if($this->debug) {
+            $query->sql = $sql;
+        }
+
+        return $query;
     }
 
     /* Transactions ------------------------------------------------ */
@@ -302,6 +310,14 @@ class DB
     }
 
     /** DB Functions */
+
+    /**
+     * Ativa debugging no db (grava queries, etc)
+     * @param bool|true $status
+     */
+    function debug($status = true) {
+        $this->debug = $status;
+    }
 
     /**
      * Returns a DB\Table helper for this table
