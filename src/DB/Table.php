@@ -84,14 +84,13 @@ class Table
 
             if(is_array($key)) {
 
-
                 if(isset($key['page'])) {
                     $page = intval($key['page']);
                     unset($key['page']);
                 }
 
                 if(isset($key['size'])) {
-                    $size = intval($key['size']);
+                    $size = empty($key['size']) ? $size : intval($key['size']);
                     unset($key['size']);
                 }
 
@@ -103,8 +102,7 @@ class Table
 
             // $params => page, size, sort
             $params = array(
-
-                'fields' => 'SQL_CALC_FOUND_ROWS', // TODO suportar isso em DB
+                'fields' => 'SQL_CALC_FOUND_ROWS *',
                 'limit' => $size,
                 'offset' => $page * $size,
                 'sort' => $sort
@@ -112,8 +110,16 @@ class Table
 
             $query = $this->select($key, $params);
 
-            // TODO pegar contagem
-            $count = 0;
+            $rows_query = $this->db->query('SELECT FOUND_ROWS() as count');
+            $rows_query->exec();
+
+            $rows = $rows_query->fetch();
+
+            if(!$rows) {
+                throw new \Exception('Error while FOUND_ROWS()', 500);
+            }
+
+            $count = intval($rows['count']);
 
             return array(
                 '_embedded' => array(
@@ -140,7 +146,7 @@ class Table
             $key = array( $this->pk => $key );
         }
 
-        return $this->db->update($this->table, $data, $key);
+        return array('updated' => $this->db->update($this->table, $data, $key));
     }
 
     public function destroy($key)
