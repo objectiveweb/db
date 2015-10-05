@@ -56,7 +56,7 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
 
     public function testSelectAll()
     {
-        $rows = self::$table->get();
+        $rows = self::$table->select()->all();
 
         $this->assertEquals(5, count($rows));
         $this->assertEquals('test', $rows[0]['name']);
@@ -67,20 +67,20 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
     {
         $r = self::$table->put(['name' => 'test1'], ['name' => 'test4']);
 
-        $this->assertEquals(1, $r);
+        $this->assertEquals(1, $r['updated']);
     }
 
 
     public function testSelectFetch()
     {
-        $r = self::$table->get(['name' => 'test4']);
+        $r = self::$table->select(['name' => 'test4'])->all();
         $this->assertNotEmpty($r);
         $this->assertEquals('test4', $r[0]['name']);
 
     }
 
     public function testSelectParams() {
-        $r = self::$table->get(['name' => 'test4', '_fields' => [ 'id' ]]);
+        $r = self::$table->select(['name' => 'test4'],[ 'fields' => [ 'id' ]])->all();
 
         $this->assertNotEmpty($r);
         $this->assertEquals(1, count(array_keys($r[0])));
@@ -98,7 +98,7 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
 
     public function testSelectEmptyResults()
     {
-        $r = self::$table->get(['name' => 'test5']);
+        $r = self::$table->select(['name' => 'test5'])->all();
 
         $this->assertEmpty($r);
 
@@ -107,7 +107,7 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
     public function testUpdateKey() {
         $r = self::$table->put(3, [ 'name' => 'test2.1']);
 
-        $this->assertEquals(1, $r);
+        $this->assertEquals(1, $r['updated']);
     }
 
     public function testSelectKey() {
@@ -118,7 +118,7 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
 
     public function testSelectNull()
     {
-        $r = self::$table->get(['name' => null]);
+        $r = self::$table->select(['name' => null])->all();
 
         $this->assertEquals(1, count($r));
         $this->assertEquals(5, $r[0]['id']);
@@ -126,7 +126,7 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
 
     public function testDelete()
     {
-        $rows = self::$table->get();
+        $rows = self::$table->select()->all();
         $this->assertEquals(count($rows), 5);
 
         $r = self::$table->destroy(['name' => 'test1']);
@@ -135,7 +135,7 @@ class TableInheritanceTest extends PHPUnit_Framework_TestCase
         $r = self::$table->destroy(['name' => 'test4']);
         $this->assertEquals(1, $r);
 
-        $rows = self::$table->get();
+        $rows = self::$table->select()->all();
         $this->assertEquals(count($rows), 4);
 
     }

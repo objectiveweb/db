@@ -54,20 +54,23 @@ class Table
      * get($key, $params = array())
      *  Returns row with key $key, with optional select $params
      *
-     * get($query = array(), $params = array())
-     *  Returns a list of rows matching $query, with optional select $params
-     *  If $query contains fields named _*, they are mapped to params
+     * get($query = array())
+     *  Returns a list of rows matching $query.
+     *  You can define
+     *   $query[page] the page to retrieve (starting at 0)
+     *   $query[size] the number of results per page
+     *   $query[sort] the results sort order
      *
      * @param mixed $key
      * @param array $params
      * @return mixed
      */
-    public function get($key = null)
+    public function get($key = null, $params = array())
     {
         if(!empty($key) && !is_array($key)) {
             // get single
             $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
-            $query = $this->db->select($this->table, $key);
+            $query = $this->db->select($this->table, $key, $params);
 
             if(!$rsrc = $query->fetch()) {
                 throw new \Exception('Record not found', 404);
