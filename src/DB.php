@@ -233,6 +233,16 @@ class DB
         return ($rows === 0) ? NULL : $this->pdo->lastInsertId();
     }
 
+
+    /**
+     * UPDATE
+     *
+     * @param String $table Table name
+     * @param array $data Data to update
+     * @param mixed $where conditions
+     * @return int number of updated rows
+     * @throws \Exception
+     */
     function update($table, $data, $where = null)
     {
 
