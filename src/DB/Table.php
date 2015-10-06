@@ -106,11 +106,14 @@ class Table
             // $params => page, size, sort
             $params = array(
                 'fields' => 'SQL_CALC_FOUND_ROWS *',
-                'limit' => $size,
-                'offset' => $page * $size,
                 'sort' => $sort
             );
 
+			if($size > 0) {
+				$params['limit'] = $size;
+				$params['offset'] = $page * $size;
+			}
+			
             $query = $this->select($key, $params);
 
             $rows_query = $this->db->query('SELECT FOUND_ROWS() as count');
