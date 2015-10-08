@@ -58,6 +58,12 @@ class DBTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('test', $rows[0]['name']);
     }
 
+	public function testSelectLike() {
+		$rows = self::$db->select('db_test', array('name' => 'test%'))->all();
+		
+		$this->assertEquals(4, count($rows));
+        $this->assertEquals('test', $rows[0]['name']);
+	}
     public function testSelectMap() {
         $map = self::$db->select('db_test')->map('id');
 

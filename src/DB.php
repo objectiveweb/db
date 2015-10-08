@@ -307,7 +307,10 @@ class DB
                     }, $value)));
                 }
                 else {
-                    $cond[] = sprintf("`%s` %s :where_%s", str_replace('`', '``', $key), is_null($value) ? 'is' : '=', $key);
+                    $cond[] = sprintf("`%s` %s :where_%s", 
+									  str_replace('`', '``', $key), 
+									  is_null($value) ? 'is' : (strpos($value, '%') !== FALSE ? 'LIKE' : '='),
+									  $key);
                     $bindings[":where_$key"] = $value;
                 }
             }
