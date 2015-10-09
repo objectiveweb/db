@@ -122,10 +122,10 @@ class DBTest extends PHPUnit_Framework_TestCase
         $rows = self::$db->select('db_test')->all();
         $this->assertEquals(count($rows), 5);
 
-        $r = self::$db->destroy('db_test', ['name' => 'test1']);
+        $r = self::$db->delete('db_test', ['name' => 'test1']);
         $this->assertEquals(0, $r);
 
-        $r = self::$db->destroy('db_test', ['name' => 'test4']);
+        $r = self::$db->delete('db_test', ['name' => 'test4']);
         $this->assertEquals(1, $r);
 
         $rows = self::$db->select('db_test')->all();

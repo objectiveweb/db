@@ -277,7 +277,7 @@ class DB
      * @return int Number of affected rows
      * @throws \Exception
      */
-    function destroy($table, $where)
+    function delete($table, $where)
     {
 
         list($where, $bindings) = $this->_where($where);
@@ -318,7 +318,6 @@ class DB
             $args = implode(" $glue ", $cond);
         }
 
-
         return array( $args, $bindings );
     }
 
@@ -328,7 +327,7 @@ class DB
      * Ativa debugging no db (grava queries, etc)
      * @param bool|true $status
      */
-    function debug($status = true) {
+    function debug($status = array()) {
         $this->debug = $status;
     }
 

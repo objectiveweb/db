@@ -154,13 +154,13 @@ class Table
 
         return array('updated' => $this->db->update($this->table, $data, $key));
     }
-
-    public function destroy($key)
+	
+    public function delete($key)
     {
         if(!is_array($key)) {
             $key = array( $this->pk => $key );
         }
 
-        return $this->db->destroy($this->table, $key);
+        return $this->db->delete($this->table, $key);
     }
 }

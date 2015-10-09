@@ -124,10 +124,10 @@ class TableTest extends PHPUnit_Framework_TestCase
         $rows = self::$table->select()->all();
         $this->assertEquals(count($rows), 5);
 
-        $r = self::$table->destroy(['name' => 'test1']);
+        $r = self::$table->delete(['name' => 'test1']);
         $this->assertEquals(0, $r);
 
-        $r = self::$table->destroy(['name' => 'test4']);
+        $r = self::$table->delete(['name' => 'test4']);
         $this->assertEquals(1, $r);
 
         $rows = self::$table->select()->all();

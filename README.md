@@ -38,7 +38,7 @@ Getting Started
     }
 
     // delete (table, conditions)
-    $db->destroy('table', array('field' => 'value'));
+    $db->delete('table', array('field' => 'value'));
 
 Table Controller
 ----------------
