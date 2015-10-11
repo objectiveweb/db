@@ -1,7 +1,5 @@
-Objectiveweb DB
-==========
-
-Database abstraction layer
+DB  ![Build Status](https://travis-ci.org/objectiveweb/db.svg?branch=master)](https://travis-ci.org/objectiveweb/db)
+==
 
 Getting Started
 ---------------
@@ -52,7 +50,7 @@ Table Controller
     // Insert
     $id = $table->post(array('field' => 'value', ...);
 
-    // Select all rows
+    // Select all rows (returns HATEOAS colletion)
     $rows = $table->get();
 
     // Update (key, values)
@@ -80,8 +78,6 @@ TODO
 
   * Management Interface: Review the API - is it ok/sane ?
     * Parameters should follow the sql syntax (json-encoded?)
-  * Write tests!
-  * Code the DB Class (DB/Table, DB/Query ?)
   * Further actions
     * POST / - Create database
     * PUT /database - Alter database

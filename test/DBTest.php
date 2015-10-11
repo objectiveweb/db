@@ -79,7 +79,7 @@ class DBTest extends PHPUnit_Framework_TestCase
     }
 
     public function testSelectIn() {
-        $rows = self::$db->select('db_test', array( 'id' => [ 2, 3, 4]) )->all();
+        $rows = self::$db->select('db_test', array( 'id' => array( 2, 3, 4 ) ))->all();
 
         $this->assertEquals(3, count($rows));
         $this->assertEquals(2, $rows[0]['id']);
@@ -97,7 +97,7 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     public function testSelectFetch()
     {
-        $r = self::$db->select('db_test', ['name' => 'test4'])->fetch();
+        $r = self::$db->select('db_test', array('name' => 'test4'))->fetch();
 
         $this->assertEquals('test4', $r['name']);
 
@@ -105,7 +105,7 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     public function testSelectEmptyResults()
     {
-        $r = self::$db->select('db_test', ['name' => 'test5'])->all();
+        $r = self::$db->select('db_test', array('name' => 'test5'))->all();
 
         $this->assertEmpty(count($r));
 
@@ -113,7 +113,7 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     public function testSelectNull()
     {
-        $r = self::$db->select('db_test', ['name' => null])->all();
+        $r = self::$db->select('db_test', array('name' => null))->all();
 
         $this->assertEquals(1, count($r));
 
@@ -125,10 +125,10 @@ class DBTest extends PHPUnit_Framework_TestCase
         $rows = self::$db->select('db_test')->all();
         $this->assertEquals(count($rows), 5);
 
-        $r = self::$db->delete('db_test', ['name' => 'test1']);
+        $r = self::$db->delete('db_test', array('name' => 'test1'));
         $this->assertEquals(0, $r);
 
-        $r = self::$db->delete('db_test', ['name' => 'test4']);
+        $r = self::$db->delete('db_test', array('name' => 'test4'));
         $this->assertEquals(1, $r);
 
         $rows = self::$db->select('db_test')->all();
