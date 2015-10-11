@@ -297,14 +297,13 @@ class DB
         if ($args && is_array($args)) {
             $cond = array();
             $bindings = array();
-
+			$me = $this;
+			
             // TODO suportar _and, _or
             foreach ($args as $key => $value) {
                 if(is_array($value)) {
                     // TODO quote array values
-                    $cond[] = sprintf("`%s` IN (%s)", str_replace('`', '``', $key), implode(",", array_map(function($v) {
-                        return $this->escape($v);
-                    }, $value)));
+                    $cond[] = sprintf("`%s` IN (%s)", str_replace('`', '``', $key), implode(",", array_map(array($this, 'escape'), $value)));
                 }
                 else {
                     $cond[] = sprintf("`%s` %s :where_%s", 
