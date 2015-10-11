@@ -75,7 +75,7 @@ class TableTest extends PHPUnit_Framework_TestCase
     }
 
     public function testSelectParams() {
-        $r = self::$table->select(array('name' => 'test4'), array( 'fields' => [ 'id' ]))->all();
+        $r = self::$table->select(array('name' => 'test4'), array( 'fields' => array( 'id' )))->all();
 
         $this->assertNotEmpty($r);
         $this->assertEquals(1, count(array_keys($r[0])));
