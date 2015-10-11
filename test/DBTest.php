@@ -9,6 +9,9 @@ include dirname(__DIR__) . '/vendor/autoload.php';
 
 use Objectiveweb\DB;
 
+/**
+ * @requires PHP 5.3
+ */
 class DBTest extends PHPUnit_Framework_TestCase
 {
 
@@ -76,7 +79,7 @@ class DBTest extends PHPUnit_Framework_TestCase
     }
 
     public function testSelectIn() {
-        $rows = self::$db->select('db_test', [ 'id' => [ 2, 3, 4]])->all();
+        $rows = self::$db->select('db_test', array( 'id' => [ 2, 3, 4]) )->all();
 
         $this->assertEquals(3, count($rows));
         $this->assertEquals(2, $rows[0]['id']);
@@ -86,7 +89,7 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     public function testUpdate()
     {
-        $r = self::$db->update('db_test', ['name' => 'test4'], ['name' => 'test1']);
+        $r = self::$db->update('db_test', array('name' => 'test4'), array('name' => 'test1'));
 
         $this->assertEquals(1, $r);
     }
