@@ -26,23 +26,23 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     public function testInsert()
     {
-        $id = self::$table->post(['name' => 'test']);
+        $id = self::$table->post(array('name' => 'test'));
 
         $this->assertEquals(1, $id);
 
-        $id = self::$table->post(['name' => 'test1']);
+        $id = self::$table->post(array('name' => 'test1'));
 
         $this->assertEquals(2, $id);
 
-        $id = self::$table->post(['name' => 'test2']);
+        $id = self::$table->post(array('name' => 'test2'));
 
         $this->assertEquals(3, $id);
 
-        $id = self::$table->post(['name' => 'test3']);
+        $id = self::$table->post(array('name' => 'test3'));
 
         $this->assertEquals(4, $id);
 
-        $id = self::$table->post(['name' => null]);
+        $id = self::$table->post(array('name' => null));
 
         $this->assertEquals(5, $id);
 
@@ -60,7 +60,7 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     public function testUpdate()
     {
-        $r = self::$table->put(['name' => 'test1'], ['name' => 'test4']);
+        $r = self::$table->put(array('name' => 'test1'), array('name' => 'test4'));
 
         $this->assertEquals(1, $r['updated']);
     }
@@ -68,14 +68,14 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     public function testSelectFetch()
     {
-        $r = self::$table->select(['name' => 'test4'])->all();
+        $r = self::$table->select(array('name' => 'test4'))->all();
         $this->assertNotEmpty($r);
         $this->assertEquals('test4', $r[0]['name']);
 
     }
 
     public function testSelectParams() {
-        $r = self::$table->select(['name' => 'test4'], [ 'fields' => [ 'id' ]])->all();
+        $r = self::$table->select(array('name' => 'test4'), array( 'fields' => [ 'id' ]))->all();
 
         $this->assertNotEmpty($r);
         $this->assertEquals(1, count(array_keys($r[0])));
@@ -83,7 +83,7 @@ class TableTest extends PHPUnit_Framework_TestCase
     }
 
     public function testGetParams() {
-        $r = self::$table->get(1, [ 'fields' => 'name' ]);
+        $r = self::$table->get(1, array( 'fields' => 'name' ));
 
         $this->assertNotEmpty($r);
 
@@ -93,14 +93,14 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     public function testSelectEmptyResults()
     {
-        $r = self::$table->select(['name' => 'test5'])->all();
+        $r = self::$table->select(array('name' => 'test5'))->all();
 
         $this->assertEmpty($r);
 
     }
 
     public function testUpdateKey() {
-        $r = self::$table->put(3, [ 'name' => 'test2.1']);
+        $r = self::$table->put(3, array('name' => 'test2.1'));
 
         $this->assertEquals(1, $r['updated']);
     }
@@ -113,7 +113,7 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     public function testSelectNull()
     {
-        $r = self::$table->select(['name' => null])->all();
+        $r = self::$table->select(array('name' => null))->all();
 
         $this->assertEquals(1, count($r));
         $this->assertEquals(5, $r[0]['id']);
@@ -124,10 +124,10 @@ class TableTest extends PHPUnit_Framework_TestCase
         $rows = self::$table->select()->all();
         $this->assertEquals(count($rows), 5);
 
-        $r = self::$table->delete(['name' => 'test1']);
+        $r = self::$table->delete(array('name' => 'test1'));
         $this->assertEquals(0, $r);
 
-        $r = self::$table->delete(['name' => 'test4']);
+        $r = self::$table->delete(array('name' => 'test4'));
         $this->assertEquals(1, $r);
 
         $rows = self::$table->select()->all();
