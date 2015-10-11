@@ -1,4 +1,4 @@
-DB  ![Build Status](https://travis-ci.org/objectiveweb/db.svg?branch=master)](https://travis-ci.org/objectiveweb/db)
+DB  ![Build Status](https://travis-ci.org/objectiveweb/db.svg?branch=master)
 ==
 
 Getting Started
