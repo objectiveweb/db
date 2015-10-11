@@ -78,8 +78,9 @@ class TableTest extends PHPUnit_Framework_TestCase
         $r = self::$table->select(array('name' => 'test4'), array( 'fields' => array( 'id' )))->all();
 
         $this->assertNotEmpty($r);
-        $this->assertEquals(1, count(array_keys($r[0])));
-        $this->assertEquals('id', array_keys($r[0])[0]);
+		$keys = array_keys($r[0]);
+        $this->assertEquals(1, count($keys));
+        $this->assertEquals('id', $keys[0]);
     }
 
     public function testGetParams() {
