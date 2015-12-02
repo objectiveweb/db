@@ -62,7 +62,7 @@ class Query {
             return $this->stmt->rowCount();
         } else {
 
-            throw new \Exception(json_encode($this->stmt->errorInfo()), $this->stmt->errorCode());
+            throw new \Exception(json_encode($this->stmt->errorInfo()), 500);
         }
     }
 
