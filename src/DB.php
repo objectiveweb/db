@@ -14,9 +14,10 @@ class DB
 
     public $error = null;
 
-		function __construct(\PDO $pdo) {
-			$this->pdo = $pdo;
-		}
+    function __construct(\PDO $pdo) {
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->pdo = $pdo;
+    }
 	
     /**
      * Creates a new DB instance
@@ -48,16 +49,11 @@ class DB
      *
      * @param array $options
      *  PDO key=>value array of driver-specific connection options.
-		 *
-		 * @return \Objectiveweb\DB
+     *
+     * @return \Objectiveweb\DB
      */
-    public static function connect($dsn, $username, $password = '', $options = array())
+    public static function connect($dsn, $username = null, $password = '', $options = array())
     {
-
-        $defaults = array(
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_EMULATE_PREPARES => false
-        );
 
         // parse dsn if necessary
         if(is_array($dsn)) {
@@ -65,9 +61,11 @@ class DB
                 $dsn['scheme'],
                 substr($dsn['path'], 1),
                 $dsn['host']);
+	          $username = $dns['user'];
+            $password = @$dns['pass'];
         }
 
-        return new DB (new PDO($dsn, $username, $password, array_merge($defaults, $options)));
+        return new DB(new PDO($dsn, $username, $password, $options));
 			
     }
 
