@@ -14,6 +14,10 @@ class DB
 
     public $error = null;
 
+		function __construct(\PDO $pdo) {
+			$this->pdo = $pdo;
+		}
+	
     /**
      * Creates a new DB instance
      *
@@ -44,8 +48,10 @@ class DB
      *
      * @param array $options
      *  PDO key=>value array of driver-specific connection options.
+		 *
+		 * @return \Objectiveweb\DB
      */
-    function __construct($dsn, $username, $password = '', $options = array())
+    public static function connect($dsn, $username, $password = '', $options = array())
     {
 
         $defaults = array(
@@ -61,7 +67,8 @@ class DB
                 $dsn['host']);
         }
 
-        $this->pdo = new PDO($dsn, $username, $password, array_merge($defaults, $options));
+        return new DB (new PDO($dsn, $username, $password, array_merge($defaults, $options)));
+			
     }
 
     function query($sql) {
