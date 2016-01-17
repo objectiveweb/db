@@ -2,6 +2,8 @@
 
 namespace Objectiveweb\DB;
 
+use Objectiveweb\DB;
+
 class Table
 {
 
@@ -21,7 +23,7 @@ class Table
      * @param string $table table name
      * @param string $pk Optional Primary Key, defaults to 'id'
      */
-    public function __construct($db, $table = null, $pk = 'id')
+    public function __construct(DB $db, $table = null, $pk = 'id')
     {
         $this->db = $db;
 
@@ -33,7 +35,7 @@ class Table
             $this->pk = $pk;
         }
 
-        // TODO table metadata
+        // TODO table metadata (lazy load)
 
     }
 
