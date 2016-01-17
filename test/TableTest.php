@@ -14,7 +14,7 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     public static function setUpBeforeClass()
     {
-        $db = new DB('mysql:dbname=objectiveweb;host=127.0.0.1', 'root', 'root');
+        $db = new DB('mysql:dbname=objectiveweb;host=127.0.0.1', 'root', getenv('MYSQL_PASSWORD'));
         $db->query('drop table if exists db_test')->exec();
 
         $db->query('create table db_test
