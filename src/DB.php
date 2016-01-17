@@ -53,6 +53,14 @@ class DB
             PDO::ATTR_EMULATE_PREPARES => false
         );
 
+        // parse dsn if necessary
+        if(is_array($dsn)) {
+            $dsn = sprintf("%s:dbname=%s;host=%s;charset=utf8",
+                $dsn['scheme'],
+                substr($dsn['path'], 1),
+                $dsn['host']);
+        }
+
         $this->pdo = new PDO($dsn, $username, $password, array_merge($defaults, $options));
     }
 
