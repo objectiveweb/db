@@ -57,7 +57,49 @@ class TableTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('test', $rows[0]['name']);
     }
 
-
+	public function testGetRoot() 
+	{
+		$rows = self::$table->get();
+		
+        $this->assertEquals(5, count($rows['_embedded']['db_test']));
+        $this->assertEquals('test', $rows['_embedded']['db_test'][0]['name']);
+		
+		$rows = self::$table->index();
+		
+        $this->assertEquals(5, count($rows['_embedded']['db_test']));
+        $this->assertEquals('test', $rows['_embedded']['db_test'][0]['name']);
+	}
+	
+	public function testPagination()
+	{
+		$rows = self::$table->index(array('size' => 2));
+		
+        $this->assertEquals(2, count($rows['_embedded']['db_test']));
+        $this->assertEquals('test', $rows['_embedded']['db_test'][0]['name']);
+		$this->assertEquals(2, $rows['page']['size']);
+		$this->assertEquals(0, $rows['page']['number']);
+		$this->assertEquals(3, $rows['page']['totalPages']);
+		$this->assertEquals(5, $rows['page']['totalElements']);
+		
+		$rows = self::$table->index(array('size' => 2, 'page' => 1));
+		
+        $this->assertEquals(2, count($rows['_embedded']['db_test']));
+        $this->assertEquals('test2', $rows['_embedded']['db_test'][0]['name']);
+		$this->assertEquals(2, $rows['page']['size']);
+		$this->assertEquals(1, $rows['page']['number']);
+		$this->assertEquals(3, $rows['page']['totalPages']);
+		$this->assertEquals(5, $rows['page']['totalElements']);
+		
+		$rows = self::$table->index(array('size' => 2, 'page' => 2));
+		
+        $this->assertEquals(1, count($rows['_embedded']['db_test']));
+        $this->assertEquals(null, $rows['_embedded']['db_test'][0]['name']);
+		$this->assertEquals(2, $rows['page']['size']);
+		$this->assertEquals(2, $rows['page']['number']);
+		$this->assertEquals(3, $rows['page']['totalPages']);
+		$this->assertEquals(5, $rows['page']['totalElements']);
+	}
+	
     public function testUpdate()
     {
         $r = self::$table->put(array('name' => 'test1'), array('name' => 'test4'));
@@ -74,6 +116,14 @@ class TableTest extends PHPUnit_Framework_TestCase
 
     }
 
+	public function testGetCollection() 
+	{
+        $r = self::$table->get(array('name' => 'test4'));
+        $this->assertNotEmpty($r['_embedded']['db_test']);
+        $this->assertEquals('test4', $r['_embedded']['db_test'][0]['name']);
+        $this->assertNotEmpty($r['page']);
+	}
+	
     public function testSelectParams() {
         $r = self::$table->select(array('name' => 'test4'), array( 'fields' => array( 'id' )))->all();
 

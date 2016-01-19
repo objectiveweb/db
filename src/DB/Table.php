@@ -50,18 +50,82 @@ class Table
         return $this->db->select($this->table, $where, $params);
     }
 
-    /**
-     * Retrieves records from table
-     *
-     * get($key, $params = array())
-     *  Returns row with key $key, with optional select $params
-     *
-     * get($query = array())
+	/**
+	 * get($query = array())
      *  Returns a list of rows matching $query.
      *  You can define
      *   $query[page] the page to retrieve (starting at 0)
      *   $query[size] the number of results per page
      *   $query[sort] the results sort order
+     */
+	public function index($key = array()) {
+		$page = 0;
+		$size = 20;
+		$sort = '';
+
+		if(is_array($key)) {
+
+			if(isset($key['page'])) {
+				$page = intval($key['page']);
+				unset($key['page']);
+			}
+
+			if(isset($key['size'])) {
+				$size = empty($key['size']) ? $size : intval($key['size']);
+				unset($key['size']);
+			}
+
+			if(isset($key['sort'])) {
+				$sort = $key['sort'];
+				unset($key['sort']);
+			}
+		}
+
+		// $params => page, size, sort
+		$params = array(
+			'fields' => 'SQL_CALC_FOUND_ROWS *',
+			'sort' => $sort
+		);
+
+		if($size > 0) {
+			$params['limit'] = $size;
+			$params['offset'] = $page * $size;
+		}
+
+		$query = $this->select($key, $params);
+
+		$rows_query = $this->db->query('SELECT FOUND_ROWS() as count');
+		$rows_query->exec();
+
+		$rows = $rows_query->fetch();
+
+		if(!$rows) {
+			throw new \Exception('Error while FOUND_ROWS()', 500);
+		}
+
+		$count = intval($rows['count']);
+
+		return array(
+			'_embedded' => array(
+				$this->table => $query->all()
+			),
+			'page' => array(
+				'size' => $size,
+				'number' => $page,
+				'totalElements' => $count,
+				'totalPages' => ceil($count / $size)
+			)
+		);
+	}
+	
+    /**
+     * Retrieves records from table
+     * 
+	 * get()
+	 * get($query = array())
+	 *  @see index($query = array())
+     * get($key, $params = array())
+     *  Returns row with key $key, with optional select $params
      *
      * @param mixed $key
      * @param array $params
@@ -69,78 +133,20 @@ class Table
      */
     public function get($key = null, $params = array())
     {
-        if(!empty($key) && !is_array($key)) {
-            // get single
-            $key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
-            $query = $this->db->select($this->table, $key, $params);
+		
+		if(empty($key) || is_array($key)) {
+			return $this->index($key);
+		}
+		
+		// get single
+		$key = sprintf('`%s` = %s', $this->pk, $this->db->escape($key));
+		$query = $this->select($key, $params);
 
-            if(!$rsrc = $query->fetch()) {
-                throw new \Exception('Record not found', 404);
-            }
+		if(!$rsrc = $query->fetch()) {
+			throw new \Exception('Record not found', 404);
+		}
 
-            return $rsrc;
-        }
-        else {
-            // get collection
-
-            $page = 0;
-            $size = 20;
-            $sort = '';
-
-            if(is_array($key)) {
-
-                if(isset($key['page'])) {
-                    $page = intval($key['page']);
-                    unset($key['page']);
-                }
-
-                if(isset($key['size'])) {
-                    $size = empty($key['size']) ? $size : intval($key['size']);
-                    unset($key['size']);
-                }
-
-                if(isset($key['sort'])) {
-                    $sort = $key['sort'];
-                    unset($key['sort']);
-                }
-            }
-
-            // $params => page, size, sort
-            $params = array(
-                'fields' => 'SQL_CALC_FOUND_ROWS *',
-                'sort' => $sort
-            );
-
-			if($size > 0) {
-				$params['limit'] = $size;
-				$params['offset'] = $page * $size;
-			}
-			
-            $query = $this->select($key, $params);
-
-            $rows_query = $this->db->query('SELECT FOUND_ROWS() as count');
-            $rows_query->exec();
-
-            $rows = $rows_query->fetch();
-
-            if(!$rows) {
-                throw new \Exception('Error while FOUND_ROWS()', 500);
-            }
-
-            $count = intval($rows['count']);
-
-            return array(
-                '_embedded' => array(
-                    $this->table => $query->all()
-                ),
-                'page' => array(
-                    'size' => $size,
-                    'number' => $page,
-                    'totalElements' => $count,
-                    'totalPages' => ceil($count / $size)
-                )
-            );
-        }
+		return $rsrc;
     }
 
     public function post($data)
