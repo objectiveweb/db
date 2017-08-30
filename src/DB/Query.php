@@ -6,6 +6,7 @@ use PDO;
 
 class Query {
 
+    /** @var \PDOStatement $stmt */
     var $stmt;
     var $sql = null;
 
@@ -52,6 +53,7 @@ class Query {
      * Executes the current statement, returns the number of modified rows
      *
      * @param array $bindings [ ":field" => "value", ... ]
+     * @throws \PDOException
      * @throws \Exception when an error occurs
      */
     function exec($bindings = null)
@@ -61,7 +63,6 @@ class Query {
         if ($res !== false) {
             return $this->stmt->rowCount();
         } else {
-
             throw new \Exception(json_encode($this->stmt->errorInfo()), 500);
         }
     }
@@ -69,7 +70,7 @@ class Query {
     /**
      * Fetches a row from a result set associated with the current Statement.
      *
-     * @return Array
+     * @return array
      */
     function fetch()
     {

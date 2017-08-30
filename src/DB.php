@@ -1,4 +1,5 @@
 <?php
+
 namespace Objectiveweb;
 
 use Objectiveweb\DB\Query;
@@ -7,18 +8,22 @@ use PDO;
 
 class DB
 {
-    /** @var \PDO  */
+    /** @var \PDO */
     public $pdo;
 
     private $debug = false;
 
     public $error = null;
 
-    function __construct(\PDO $pdo) {
+    private $prefix = null;
+
+    function __construct(\PDO $pdo, $prefix = null)
+    {
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo = $pdo;
+        $this->prefix = $prefix;
     }
-	
+
     /**
      * Creates a new DB instance
      *
@@ -56,20 +61,24 @@ class DB
     {
 
         // parse dsn if necessary
-        if(is_array($dsn)) {
+        if (is_array($dsn)) {
+            $username = $dsn['user'];
+            $password = @$dsn['pass'];
             $dsn = sprintf("%s:dbname=%s;host=%s;charset=utf8",
                 $dsn['scheme'],
-                substr($dsn['path'], 1),
+                isset($dsn['dbname']) ? $dsn['dbname'] : substr($dsn['path'], 1),
                 $dsn['host']);
-	          $username = $dns['user'];
-            $password = @$dns['pass'];
         }
 
-        return new DB(new PDO($dsn, $username, $password, $options));
-			
+        $prefix = @$options['prefix'];
+        unset($options['prefix']);
+
+        return new DB(new PDO($dsn, $username, $password, $options), $prefix);
+
     }
 
-    function query($sql) {
+    function query($sql)
+    {
         if (func_num_args() > 1) {
             $sql = call_user_func_array('sprintf', func_get_args());
         }
@@ -78,7 +87,7 @@ class DB
 
         $query = new Query($stmt);
 
-        if($this->debug) {
+        if ($this->debug) {
             $query->sql = $sql;
         }
 
@@ -110,15 +119,18 @@ class DB
         $this->beginTransaction();
 
         try {
-            call_user_func($callable, $this);
-            return $this->commit();
+            $ret = call_user_func($callable, $this);
+
+            if(!$this->commit()) {
+                throw new \Exception('Cannot commit transaction', 500);
+            }
+
+            return $ret;
         } catch (\Exception $ex) {
             $this->rollBack();
-            $this->error = $ex;
-            return false;
+            throw $ex;
         }
     }
-
 
     /* sql helpers  ------------------------------------------------ */
 
@@ -134,6 +146,10 @@ class DB
      *  order => null
      *  limit => null
      *  offset => 0
+     *  join => array(
+     *    'table' => 'table.id = other.id', // table -> condition syntax
+     *    'othertable t on t.id = table.id' // raw string syntax
+     *  )
      *
      * @return \Objectiveweb\DB\Query
      * @throws \Exception
@@ -146,74 +162,88 @@ class DB
             'group' => NULL,
             'order' => NULL,
             'limit' => NULL,
-            'offset' => 0
+            'offset' => 0,
+            'join' => ''
         );
 
         $params = array_merge($defaults, $params);
 
-        if(is_array($table)) {
-            throw new \Exception('not implemented');
-        }
-        else {
+        /**
+         * JOIN
+         */
+        if (is_array($params['join'])) {
             $join = '';
+            foreach ($params['join'] as $k => $v) {
+                if (is_numeric($k)) {
+                    $join .= " $v";
+                } else {
+                    if ($k[0] == '*') {
+                        $join .= ' left';
+                        $k = ltrim($k, '*');
+                    } else {
+                        $join .= ' inner';
+                    }
+                    $join .= " join {$this->prefix}{$k} {$k} on {$v}";
+                }
+            }
+        } else {
+            $join = $params['join'];
         }
 
-        if(!is_array($params['fields'])) {
-            $_fields = explode(",", $params['fields']);
-        }
-        else {
-            $_fields = $params['fields'];
+        /**
+         * FIELDS
+         */
+        if (!is_array($params['fields'])) {
+            $params['fields'] = explode(",", $params['fields']);
         }
 
         $fields = array();
 
-        foreach($_fields as $k => $v) {
+        foreach ($params['fields'] as $k => $v) {
 
             // Allow * and functions
-            if(preg_match('/(\*|[A-Z]+\([^\)]+\)|[a-z]+\([^\)]+\))/', $v)) {
+            if (preg_match('/(\*|[A-Z]+\([^\)]+\)|[a-z]+\([^\)]+\)|SQL_CALC_FOUND_ROWS.*)/', $v)) {
                 $r = str_replace('`', '``', $v);
-            }
-            else {
-                $r = "`".str_replace('`', '``', $v)."`";
+            } else {
+                $r = "`" . implode('`.`', explode(".", str_replace('`', '``', $v))) . "`";
             }
 
-            if(!is_numeric($k)) {
+            if (!is_numeric($k)) {
                 $r .= sprintf(" as `%s`", str_replace('`', '``', $k));
             }
 
-            $fields[] = $r;
+            //$fields[] = $r;
+            $params['fields'][$k] = $r;
         }
 
         list($where, $bindings) = $this->_where($where);
 
-        $sql = sprintf("SELECT %s FROM `%s` %s %s",
-            implode(", ", $fields),
+        $sql = sprintf(/** @lang text */
+            "SELECT %s FROM `%s` %s %s %s",
+            implode(", ", $params['fields']),
+            $this->prefix . $table,
             $table,
             $join,
-            !empty($where) ? 'WHERE '.$where : '');
+            !empty($where) ? 'WHERE ' . $where : '');
 
-        if($params['group']) {
-            if(is_array($params['group'])) {
+        if ($params['group']) {
+            if (is_array($params['group'])) {
                 throw new \Exception('not implemented');
-            }
-            else {
+            } else {
                 $sql .= sprintf(' GROUP BY %s', $params['group']);
             }
         }
 
-        if($params['order']) {
-            if(is_array($params['order'])) {
-                throw new \Exception('not implemented');
+        if (!empty($params['order'])) {
+            if (is_array($params['order'])) {
+                $params['order'] = implode(' ', $params['order']);
             }
-            else {
-                $sql .= sprintf(' ORDER BY %s', $params['order']);
-            }
+            $sql .= sprintf(' ORDER BY %s', $params['order']);
         }
 
-        if($params['limit']) {
+        if ($params['limit']) {
             $sql .= sprintf(' LIMIT %d,%d', $params['offset'], $params['limit']);
         }
-
 
         $query = $this->query($sql);
 
@@ -234,7 +264,7 @@ class DB
 
         $fields = array_keys($data);
 
-        $sql = "INSERT INTO " . $table . " (" . implode($fields, ", ") . ") VALUES (:" . implode($fields, ", :") . ");";
+        $sql = "INSERT INTO " . $this->prefix . $table . " (" . implode(", ", $fields) . ") VALUES (:" . implode(", :", $fields) . ");";
 
         $query = $this->query($sql);
         foreach ($fields as $field) {
@@ -272,8 +302,9 @@ class DB
             throw new \Exception("Nothing to UPDATE");
         }
 
-        $sql = sprintf("UPDATE %s SET %s WHERE %s",
-            $table,
+        $sql = sprintf(/** @lang text */
+            "UPDATE `%s` SET %s WHERE %s",
+            $this->prefix . $table,
             implode(", ", $changes),
             $where);
 
@@ -295,7 +326,8 @@ class DB
 
         list($where, $bindings) = $this->_where($where);
 
-        $sql = sprintf("DELETE FROM %s WHERE %s", $table, $where);
+        $sql = sprintf(/** @lang text */
+            "DELETE FROM `%s` WHERE %s", $this->prefix . $table, $where);
 
         $query = $this->query($sql);
 
@@ -310,19 +342,24 @@ class DB
         if ($args && is_array($args)) {
             $cond = array();
             $bindings = array();
-			$me = $this;
-			
+            $me = $this;
+
             // TODO suportar _and, _or
             foreach ($args as $key => $value) {
-                if(is_array($value)) {
+
+                // TODO if is_numeric($key)
+                $table = str_replace('`', '``', $key);
+                $table = implode('`.`', explode(".", $table));
+                $key = crc32($key);
+
+                if (is_array($value)) {
                     // TODO quote array values
-                    $cond[] = sprintf("`%s` IN (%s)", str_replace('`', '``', $key), implode(",", array_map(array($this, 'escape'), $value)));
-                }
-                else {
-                    $cond[] = sprintf("`%s` %s :where_%s", 
-									  str_replace('`', '``', $key), 
-									  is_null($value) ? 'is' : (strpos($value, '%') !== FALSE ? 'LIKE' : '='),
-									  $key);
+                    $cond[] = sprintf("`%s` IN (%s)", $table, implode(",", array_map(array($this, 'escape'), $value)));
+                } else {
+                    $cond[] = sprintf("`%s` %s :where_%s",
+                        $table,
+                        is_null($value) ? 'is' : (strpos($value, '%') !== FALSE ? 'LIKE' : '='),
+                        $key);
                     $bindings[":where_$key"] = $value;
                 }
             }
@@ -330,7 +367,7 @@ class DB
             $args = implode(" $glue ", $cond);
         }
 
-        return array( $args, $bindings );
+        return array($args, $bindings);
     }
 
     /** DB Functions */
@@ -339,29 +376,43 @@ class DB
      * Ativa debugging no db (grava queries, etc)
      * @param bool|true $status
      */
-    function debug($status = array()) {
+    function debug($status = array())
+    {
         $this->debug = $status;
     }
 
     /**
      * Returns a DB\Table helper for this table
      * @param $table String the table name
-     * @param string $pk Optional Primary Key, defaults to 'id'
+     * @param array $params Optional Primary Key, defaults to 'id'
      * @return DB\Table
      */
-    function table($table, $pk = 'id')
+    function table($table, array $params = ['pk' => 'id'])
     {
-        if(class_exists($table) && is_subclass_of($table, 'Objectiveweb\DB\Table')) {
+        if (class_exists($table) && is_subclass_of($table, 'Objectiveweb\DB\Table')) {
 
             return new $table($this);
-        }
-        else {
-            return new DB\Table($this, $table, $pk);
+        } else {
+            return new DB\Table($this, $table, $params);
         }
     }
 
     function escape($string)
     {
         return $this->pdo->quote($string);
+    }
+
+    public static function array_cleanup(array $array, array $valid_keys = [], $defaults = [])
+    {
+        if (!is_array($valid_keys)) {
+            $valid_keys = array($valid_keys);
+        }
+        $clean_array = array_intersect_key($array, array_flip($valid_keys));
+        return array_merge($defaults, $clean_array);
+    }
+
+    public static function now()
+    {
+        return date('Y-m-d H:i:s');
     }
 }

@@ -38,20 +38,52 @@ Getting Started
     // delete (table, conditions)
     $db->delete('table', array('field' => 'value'));
 
-Table Controller
-----------------
+    // transactions
+    $db->transaction(function() use ($somevar) {
+        $id = $db->insert(...);
+        $db->update(...);
+
+        if($condition) {
+            throw new \Exception('Error - transaction rolled back');
+        } else {
+            return $id;
+        }
+    });
+
+CRUD Operations
+---------------
 
     use Objectiveweb\DB;
 
     $db = new DB(...);
 
-    $table = $db->table('tablename');
+    $table = $db->table('tablename', [
+        'pk' => 'id',
+        'join' => []
+    ]);
 
     // Insert
     $id = $table->post(array('field' => 'value', ...);
 
-    // Select all rows (returns HATEOAS colletion)
-    $rows = $table->get();
+    // Select all rows (returns DB\Collection)
+    $table->index();
+
+    // Get parameters
+    $data = $table->index([ 
+        'filter' => [ 'field' => 'value' ], 
+        'sort' => ['id', 'asc'],
+        'range' => [ 0, 4 ]
+    ]);
+
+    // Number of results
+    count($data);
+
+    // Total number of results (when using range)
+    $data->total();
+
+    foreach($data as $item) {
+        $item['field'];
+    }
 
     // Update (key, values)
     $affected_rows = $table->put(array('name' = 'new name'), array('name' => 'old name'));
@@ -65,24 +97,13 @@ Extending DB\Table
 
     class MyTable extends Objectiveweb\DB\Table {
         var $table = 'table_name';
-        var $pk = 'id';
+        var $params = [
+            'pk => 'id',
+            'join' => []
+        ];
     }
 
     // then, instantiate it
     $table = $db->table('MyTable');
 
     $table->post(array('name' => 'new item'));
-
-TODO
-----
-
-  * Management Interface: Review the API - is it ok/sane ?
-    * Parameters should follow the sql syntax (json-encoded?)
-  * Further actions
-    * POST / - Create database
-    * PUT /database - Alter database
-    * POST /database - Create table
-    * PUT /database/table - Alter table
-    * POST /database/table - Insert into
-    * PUT /database/table/id - Update record with id = id
-	* ...

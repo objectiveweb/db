@@ -53,6 +53,9 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     }
 
+    /**
+     * @depends testInsert
+     */
     public function testSelectAll()
     {
         $rows = self::$db->select('db_test')->all();
@@ -61,13 +64,36 @@ class DBTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('test', $rows[0]['name']);
     }
 
-	public function testSelectLike() {
-		$rows = self::$db->select('db_test', array('name' => 'test%'))->all();
-		
-		$this->assertEquals(4, count($rows));
+    /**
+     * @depends testInsert
+     */
+    public function testSelectParams()
+    {
+        $r = self::$db->select('db_test', array('name' => 'test3'), array('fields' => array('id')))->all();
+
+        $this->assertNotEmpty($r);
+        $keys = array_keys($r[0]);
+        $this->assertEquals(1, count($keys));
+        $this->assertEquals('id', $keys[0]);
+        $this->assertEquals(4, $r[0]['id']);
+    }
+
+    /**
+     * @depends testInsert
+     */
+    public function testSelectLike()
+    {
+        $rows = self::$db->select('db_test', array('name' => 'test%'))->all();
+
+        $this->assertEquals(4, count($rows));
         $this->assertEquals('test', $rows[0]['name']);
-	}
-    public function testSelectMap() {
+    }
+
+    /**
+     * @depends testInsert
+     */
+    public function testSelectMap()
+    {
         $map = self::$db->select('db_test')->map('id');
 
         $this->assertEquals(5, count($map));
@@ -78,8 +104,12 @@ class DBTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(null, $map[5]['name']);
     }
 
-    public function testSelectIn() {
-        $rows = self::$db->select('db_test', array( 'id' => array( 2, 3, 4 ) ))->all();
+    /**
+     * @depends testInsert
+     */
+    public function testSelectIn()
+    {
+        $rows = self::$db->select('db_test', array('id' => array(2, 3, 4)))->all();
 
         $this->assertEquals(3, count($rows));
         $this->assertEquals(2, $rows[0]['id']);
@@ -87,6 +117,9 @@ class DBTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(4, $rows[2]['id']);
     }
 
+    /**
+     * @depends testInsert
+     */
     public function testUpdate()
     {
         $r = self::$db->update('db_test', array('name' => 'test4'), array('name' => 'test1'));
@@ -94,7 +127,9 @@ class DBTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(1, $r);
     }
 
-
+    /**
+     * @depends testUpdate
+     */
     public function testSelectFetch()
     {
         $r = self::$db->select('db_test', array('name' => 'test4'))->fetch();
@@ -103,6 +138,9 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     }
 
+    /**
+     * @depends testUpdate
+     */
     public function testSelectEmptyResults()
     {
         $r = self::$db->select('db_test', array('name' => 'test5'))->all();
@@ -111,6 +149,9 @@ class DBTest extends PHPUnit_Framework_TestCase
 
     }
 
+    /**
+     * @depends testUpdate
+     */
     public function testSelectNull()
     {
         $r = self::$db->select('db_test', array('name' => null))->all();
@@ -120,6 +161,9 @@ class DBTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(5, $r[0]['id']);
     }
 
+    /**
+     * @depends testUpdate
+     */
     public function testDelete()
     {
         $rows = self::$db->select('db_test')->all();
