@@ -68,10 +68,12 @@ trait CrudTrait
         $queryparams = [];
         if (!empty($params['fields'])) {
             if (!is_array($params['fields'])) {
-                $queryparams['fields'] = explode(',', $params['fields']);
+                $params['fields'] = explode(',', $params['fields']);
             }
 
-            $queryparams['fields'][0] = 'SQL_CALC_FOUND_ROWS ' . $params['fields'][0];
+            $params['fields'][0] = 'SQL_CALC_FOUND_ROWS ' . $params['fields'][0];
+
+            $queryparams['fields'] = $params['fields'];
 
         } else {
             $queryparams['fields'] = "SQL_CALC_FOUND_ROWS $this->table.*";

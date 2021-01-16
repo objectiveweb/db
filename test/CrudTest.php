@@ -12,11 +12,11 @@ class CrudTest extends PHPUnit_Framework_TestCase
     /** @var  Table */
     static protected $table;
     static protected $testData = [
-        1 => ['name' => 'test'],
-        2 => ['name' => 'test1'],
-        3 => ['name' => 'test2'],
-        4 => ['name' => 'test3'],
-        5 => ['name' => null]
+        1 => ['name' => 'test', 'f1' => 'test', 'f2' => 'test', 'f3' => 'test'],
+        2 => ['name' => 'test1', 'f1' => 'test1', 'f2' => 'test1', 'f3' => 'test1'],
+        3 => ['name' => 'test2', 'f1' => 'test2', 'f2' => 'test2', 'f3' => 'test2'],
+        4 => ['name' => 'test3', 'f1' => 'test3', 'f2' => 'test3', 'f3' => 'test3'],
+        5 => ['name' => null, 'f1' => 'test3', 'f2' => 'test3', 'f3' => 'test3']
     ];
 
     public static function setUpBeforeClass()
@@ -26,7 +26,7 @@ class CrudTest extends PHPUnit_Framework_TestCase
 
         $db->query('create table db_test
             (`id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                `name` VARCHAR(255));')->exec();
+                `name` VARCHAR(255), `f1` VARCHAR(255), `f2` VARCHAR(255), `f3` VARCHAR(255));')->exec();
 
         self::$table = $db->table('db_test');
 
@@ -62,6 +62,19 @@ class CrudTest extends PHPUnit_Framework_TestCase
         }
 
         $this->assertEquals(5, $count);
+    }
+
+    /**
+     * @depends testInsert
+     */
+    public function testFields() {
+        $data = self:: $table->index(['fields' => ['id', 'f1', 'f2']]);
+
+        foreach($data as $result) {
+            $this->assertCount(3, $result);
+            $this->assertEquals($result['f1'], self::$testData[$result['id']]['f1']);
+            $this->assertEquals($result['f2'], self::$testData[$result['id']]['f2']);
+        }
     }
 
     /**
@@ -145,6 +158,9 @@ class CrudTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('test2.1', $r['name']);
     }
 
+    /**
+     * @depends testSelectKey
+     */
     public function testDelete()
     {
         $data = self::$table->index();
@@ -159,4 +175,5 @@ class CrudTest extends PHPUnit_Framework_TestCase
         $data = self::$table->index();
         $this->assertEquals($data->total(), 4);
     }
+
 }

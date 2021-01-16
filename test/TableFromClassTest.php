@@ -25,7 +25,7 @@ class TableFromClassTest extends CrudTest
 
         $db->query('create table db_test
             (`id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                `name` VARCHAR(255));')->exec();
+                `name` VARCHAR(255), `f1` VARCHAR(255), `f2` VARCHAR(255), `f3` VARCHAR(255));')->exec();
 
         self::$table = $db->table('DbTestTable');
     }
