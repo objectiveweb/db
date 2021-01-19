@@ -52,7 +52,7 @@ class Collection implements \JsonSerializable, \ArrayAccess, \Countable, \Iterat
         return array_key_exists($offset, $this->data);
     }
 
-    public function offsetGet($offset)
+    public function &offsetGet($offset)
     {
         return $this->data[$offset];
     }
@@ -72,14 +72,10 @@ class Collection implements \JsonSerializable, \ArrayAccess, \Countable, \Iterat
         return count($this->data);
     }
 
-    public function getIterator()
+    public function &getIterator()
     {
-        $dataIterator = function () {
-            foreach($this->data as $key => $val) {
-                yield $key => $val;
-            }
-        };
-
-        return $dataIterator();
+        foreach($this->data as $key => &$val) {
+            yield $key => $val;
+        }
     }
 }
