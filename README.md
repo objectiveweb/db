@@ -28,6 +28,16 @@ Getting Started
     // select IN
     $rows = $db->select('table', array('ID' => array( 1, 2, 3))->all();
 
+    // select JOIN
+    $rows = $db->select('table', [], ['join' => [
+       'othertable o on o.some_id = table.id',  // full join in single line
+       'table1' => 'table1.some_id = table.id', // inner join table1 table1 on table1.some_id = table.id
+       '*table1' => 'table1.some_id = table.id' // left join table1 table1 on ...
+    ]);
+
+    // select JOIN with raw query
+    $rows = $db->select('table', [], ['join' => 'othertable b on b.x = table.id']);
+
     // fetch row by row
     $query = $db->select('table');
 
