@@ -89,6 +89,7 @@ class DB
 
         if ($this->debug) {
             $query->sql = $sql;
+            error_log($sql);
         }
 
         return $query;
