@@ -121,7 +121,7 @@ class DB
         try {
             $ret = call_user_func($callable, $this);
 
-            if(!$this->commit()) {
+            if (!$this->commit()) {
                 throw new \Exception('Cannot commit transaction', 500);
             }
 
@@ -268,7 +268,7 @@ class DB
 
         $query = $this->query($sql);
         foreach ($fields as $field) {
-            $query->bind($field, $data[$field]);
+            $query->bind($field, is_bool($data[$field]) ? intval($data[$field]) : $data[$field]);
         }
 
         $rows = $query->exec();
@@ -295,7 +295,7 @@ class DB
 
         foreach ($data as $key => $value) {
             $changes[] = "$key = :update_$key";
-            $bindings[":update_$key"] = $value;
+            $bindings[":update_$key"] = is_bool($value) ? intval($value) : $value;
         }
 
         if (empty($changes)) {
