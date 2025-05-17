@@ -33,9 +33,13 @@ trait CrudTrait
         if (!$this->params) {
             $this->params = array_merge([
                 'pk' => 'id',
-                'join' => []
+                'join' => [],
+                'fields' => ["$this->table.*"]
             ], $params);
         }
+
+
+        $this->params['pk'] = implode('`.`', explode('.', $this->params['pk']));
 
     }
 
@@ -66,18 +70,17 @@ trait CrudTrait
 
         // Other query parameters
         $queryparams = [];
-        if (!empty($params['fields'])) {
-            if (!is_array($params['fields'])) {
-                $params['fields'] = explode(',', $params['fields']);
-            }
-
-            $params['fields'][0] = 'SQL_CALC_FOUND_ROWS ' . $params['fields'][0];
-
-            $queryparams['fields'] = $params['fields'];
-
-        } else {
-            $queryparams['fields'] = "SQL_CALC_FOUND_ROWS $this->table.*";
+        if (empty($params['fields'])) {
+            $params['fields'] = $this->params['fields'];
         }
+
+        if (!is_array($params['fields'])) {
+            $params['fields'] = explode(',', $params['fields']);
+        }
+
+        $params['fields'][0] = 'SQL_CALC_FOUND_ROWS ' . $params['fields'][0];
+
+        $queryparams['fields'] = $params['fields'];
 
         if (!empty($params['sort'])) {
             if (!is_array($params['sort'])) {
@@ -100,6 +103,7 @@ trait CrudTrait
         }
 
         $queryparams['join'] = isset($params['join']) ? $params['join'] : $this->params['join'];
+        $queryparams['group'] = isset($params['group']) ? $params['group'] : $this->params['group'];
 
         $query = $this->db->select($this->table, $where, $queryparams);
 
@@ -139,6 +143,8 @@ trait CrudTrait
         }
 
         $params['join'] = $this->params['join'];
+        $params['fields'] = $this->params['fields'];
+        $params['group'] = $this->params['group'];
 
         // get single
         $key = sprintf('`%s` = %s', $this->params['pk'], $this->db->escape($key));
