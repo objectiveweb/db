@@ -349,6 +349,13 @@ class DB
             // TODO suportar _and, _or
             foreach ($args as $key => $value) {
 
+                if ($key[0] == '!') {
+                    $key = substr($key, 1);
+                    $not = true;
+                } else {
+                    $not = false;
+                }
+
                 // TODO if is_numeric($key)
                 $table = str_replace('`', '``', $key);
                 $table = implode('`.`', explode(".", $table));
@@ -360,7 +367,11 @@ class DB
                 } else {
                     $cond[] = sprintf("`%s` %s :where_%s",
                         $table,
-                        is_null($value) ? 'is' : (strpos($value, '%') !== FALSE ? 'LIKE' : '='),
+                        is_null($value) ?
+                            ($not ? 'IS NOT' : 'IS') :
+                            (strpos($value, '%') !== FALSE ? // TODO allow escaping %
+                                ($not ? 'NOT LIKE' : 'LIKE') :
+                                ($not ? '<>' : '=')),
                         $key);
                     $bindings[":where_$key"] = $value;
                 }
