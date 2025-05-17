@@ -229,7 +229,7 @@ class DB
 
         if ($params['group']) {
             if (is_array($params['group'])) {
-                throw new \Exception('not implemented');
+                throw new \Exception('not implemented, use a single field (string)');
             } else {
                 $sql .= sprintf(' GROUP BY %s', $params['group']);
             }
@@ -287,7 +287,7 @@ class DB
      * @return int number of updated rows
      * @throws \Exception
      */
-    function update($table, $data, $where = null)
+    function update($table, $data, $where = null, $limit = null)
     {
 
         $changes = array();
@@ -304,10 +304,11 @@ class DB
         }
 
         $sql = sprintf(/** @lang text */
-            "UPDATE `%s` SET %s WHERE %s",
+            "UPDATE `%s` SET %s WHERE %s %s",
             $this->prefix . $table,
             implode(", ", $changes),
-            $where);
+            $where,
+            $limit ? "LIMIT $limit" : "");
 
         $query = $this->query($sql);
 
