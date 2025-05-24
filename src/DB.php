@@ -184,7 +184,18 @@ class DB
                     } else {
                         $join .= ' inner';
                     }
-                    $join .= " join {$this->prefix}{$k} {$k} on {$v}";
+
+                    $join_table = explode(" ", trim($k));
+
+                    if (count($join_table) > 1) {
+                        $join_alias = $join_table[1];
+                    } else {
+                        $join_alias = $join_table[0];
+                    }
+
+                    $join_table = $this->prefix . $join_table[0];
+
+                    $join .= " join {$join_table} {$join_alias} on {$v}";
                 }
             }
         } else {
