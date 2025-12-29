@@ -43,31 +43,13 @@ trait CrudTrait
 
     }
 
-    /**
-     * index($query = array())
-     *  Returns a list of rows matching $query.
-     *
-     * @param array $params
-     *  You can define
-     *   $params[range] range of records to return
-     *   $params[sort] the results sort order
-     * @param array $filter Default filter that is merged with params, overrides any user-provided values
-     * @return array
-     * @throws \Exception
-     */
     public function index($params = [], $filter = [])
     {
-        // Where clause
-        if (!empty($params['filter'])) {
-            if (!is_array($params['filter'])) {
-                $where = array_merge(json_decode($params['filter'], true), $filter);
-            } else {
-                $where = array_merge($params['filter'], $filter);
-            }
-        } else {
-            $where = $filter;
-        }
+        return $this->select($filter, $params);
+    }
 
+    private function parse_params($params)
+    {
         // Other query parameters
         $queryparams = [];
         if (empty($params['fields'])) {
@@ -78,7 +60,8 @@ trait CrudTrait
             $params['fields'] = explode(',', $params['fields']);
         }
 
-        $params['fields'][0] = 'SQL_CALC_FOUND_ROWS ' . $params['fields'][0];
+        $first_field = array_key_first($params['fields']);
+        $params['fields'][$first_field] = 'SQL_CALC_FOUND_ROWS ' . $params['fields'][$first_field];
 
         $queryparams['fields'] = $params['fields'];
 
@@ -104,6 +87,36 @@ trait CrudTrait
 
         $queryparams['join'] = isset($params['join']) ? $params['join'] : $this->params['join'];
         $queryparams['group'] = isset($params['group']) ? $params['group'] : $this->params['group'];
+
+        return $queryparams;
+    }
+    /**
+     * select(array $filter, array $params)
+     *  Returns a list of rows matching $query.
+     *
+     * @param array $filter Default filter that is merged with params, overrides any user-provided values
+     * @param array $params
+     *  You can define
+     *   $params[range] range of records to return
+     *   $params[sort] the results sort order
+     * @return Collection
+     * @throws \Exception
+     */
+
+    public function select(array $filter = [], array $params = []): Collection
+    {
+        // Where clause
+        if (!empty($params['filter'])) {
+            if (!is_array($params['filter'])) {
+                $where = array_merge(json_decode($params['filter'], true), $filter);
+            } else {
+                $where = array_merge($params['filter'], $filter);
+            }
+        } else {
+            $where = $filter;
+        }
+
+        $queryparams = $this->parse_params($params);
 
         $query = $this->db->select($this->table, $where, $queryparams);
 
@@ -137,14 +150,11 @@ trait CrudTrait
      */
     public function get($key = null, $params = [])
     {
-
         if (empty($key) || is_array($key)) {
-            return $this->index($key);
+            return $this->select($key, $params);
         }
 
-        $params['join'] = $this->params['join'];
-        $params['fields'] = $this->params['fields'];
-        $params['group'] = $this->params['group'];
+        $params = $this->parse_params($params);
 
         // get single
         $key = sprintf('`%s` = %s', $this->params['pk'], $this->db->escape($key));
@@ -155,6 +165,11 @@ trait CrudTrait
         }
 
         return $rsrc;
+    }
+
+    public function insert(array $data): ?array
+    {
+        return $this->post($data);
     }
 
     public function post($data)
@@ -186,7 +201,7 @@ trait CrudTrait
 
     public function findBy($key, $value)
     {
-        return $this->index([
+        return $this->select([
             'filter' => [
                 $key => $value
             ]
