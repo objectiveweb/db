@@ -66,13 +66,7 @@ trait CrudTrait
         $queryparams['fields'] = $params['fields'];
 
         if (!empty($params['sort'])) {
-            if (!is_array($params['sort'])) {
-                $sort = json_decode($params['sort']);
-            } else {
-                $sort = $params['sort'];
-            }
-
-            $queryparams['order'] = implode(" ", $sort);
+            $queryparams['order'] = $params['sort'];
         }
 
         if (!empty($params['range'])) {
@@ -157,7 +151,7 @@ trait CrudTrait
         $params = $this->parse_params($params);
 
         // get single
-        $key = sprintf('`%s` = %s', $this->params['pk'], $this->db->escape($key));
+        $key = sprintf('`%s`.`%s` = %s', $this->table, $this->params['pk'], $this->db->escape($key));
         $query = $this->db->select($this->table, $key, $params);
 
         if (!$rsrc = $query->fetch()) {

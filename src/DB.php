@@ -248,7 +248,7 @@ class DB
 
         if (!empty($params['order'])) {
             if (is_array($params['order'])) {
-                $params['order'] = implode(' ', $params['order']);
+                $params['order'] = implode(', ', $params['order']);
             }
             $sql .= sprintf(' ORDER BY %s', $params['order']);
         }
