@@ -1,119 +1,202 @@
-DB  ![Build Status](https://travis-ci.org/objectiveweb/db.svg?branch=master)
-==
+# objectiveweb/db
 
-Getting Started
----------------
+Small database abstraction layer built on top of Doctrine DBAL.
 
-    use Objectiveweb\DB;
+## Install
 
-    $db = new DB('pdo uri', 'username', 'password');
+```bash
+composer require objectiveweb/db doctrine/dbal
+```
 
-    // general queries
-    $db->query('create table ...')->exec();
+## Getting started
 
-    // insert
-    $insert_id = $db->insert('table', array('field' => 'value', 'otherfield' => 'value'));
+```php
+use Objectiveweb\DB;
 
-    // update (table, values, conditions)
-    $affected_rows = $db->update('table', array('field' => 'newvalue', ...), array('field' => 'value'));
+$db = DB::connect('mysql:dbname=app;host=127.0.0.1', 'user', 'secret');
 
-    // select all rows
-    // returns array ( row1, row2, ...)
-    $rows = $db->select('table')->all();
+// Raw query
+$db->query('CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255))')->exec();
 
-    // map results by field
-    // returns associative array { 'row1_field_value' => row1, 'row2_field_value' => row2, ...)
-    $rows = $db->select('table')->map('field');
+// Insert
+$insertId = $db->insert('users', ['name' => 'Alice']);
 
-    // select IN
-    $rows = $db->select('table', array('ID' => array( 1, 2, 3))->all();
+// Update (table, values, conditions)
+$affectedRows = $db->update('users', ['name' => 'Alice Smith'], ['id' => 1]);
 
-    // select JOIN
-    $rows = $db->select('table', [], ['join' => [
-       'othertable o on o.some_id = table.id',  // full join in single line
-       'table1' => 'table1.some_id = table.id', // inner join table1 table1 on table1.some_id = table.id
-       '*table1' => 'table1.some_id = table.id' // left join table1 table1 on ...
-    ]);
+// Select all rows
+$rows = $db->select('users')->all();
 
-    // select JOIN with raw query
-    $rows = $db->select('table', [], ['join' => 'othertable b on b.x = table.id']);
+// Select with IN
+$rows = $db->select('users', ['id' => [1, 2, 3]])->all();
 
-    // fetch row by row
-    $query = $db->select('table');
+// Select with LIKE
+$rows = $db->select('users', ['name' => 'Ali%'])->all();
 
-    while($row = $query->fetch()) {
-        // process $row
+// Map by field
+$byId = $db->select('users')->map('id');
+
+// Fetch row by row
+$query = $db->select('users');
+while ($row = $query->fetch()) {
+    // process
+}
+
+// Delete
+$affectedRows = $db->delete('users', ['id' => 1]);
+
+// Transaction
+$db->transaction(function (DB $db) {
+    $id = $db->insert('users', ['name' => 'Bob']);
+    $db->update('users', ['name' => 'Bobby'], ['id' => $id]);
+
+    return $id;
+});
+```
+
+## CRUD operations
+
+```php
+use Objectiveweb\DB;
+
+$db = DB::connect('mysql:dbname=app;host=127.0.0.1', 'user', 'secret');
+
+$table = $db->table('users', [
+    'pk' => 'id',
+    'join' => [],
+    'model' => null, // optional: class-string to map rows into objects
+]);
+
+// Insert
+$id = $table->insert(['name' => 'Alice']);
+
+// Select all rows (returns Objectiveweb\DB\Collection)
+$data = $table->select();
+
+// Filter/sort/range
+$data = $table->select([], [
+    'filter' => ['name' => 'Alice'],
+    'sort' => [
+        ['last_name', 'asc'],
+        ['id', 'desc'],
+    ],
+    'range' => [0, 9],
+]);
+
+$count = count($data);
+$total = $data->total();
+$contentRange = $data->contentRange();
+
+foreach ($data as $item) {
+    $item['name'];
+}
+
+// Update by filter
+$updated = $table->update(['name' => 'Alice'], ['name' => 'Alice Smith']);
+
+// Update by ID
+$updated = $table->update(1, ['name' => 'Alice Smith']);
+```
+
+`select($filter, $params)` rule: when `$params['filter']` is provided, it is merged with `$filter` (`array_merge($filter, $params['filter'])`), so keys in `$params['filter']` win on conflicts.
+
+### Model mapping (optional)
+
+```php
+use Objectiveweb\DB\Model;
+
+final class UserModel extends Model
+{
+    protected static array $validFields = ['name', 'age'];
+
+    protected static array $creationRules = [
+        'name' => [
+            'required' => true,
+            'filter' => FILTER_UNSAFE_RAW,
+            'validate' => [self::class, 'validateName'],
+        ],
+        'age' => [
+            'required' => true,
+            'filter' => FILTER_VALIDATE_INT,
+            'validate' => [self::class, 'validateAge'],
+        ],
+    ];
+
+    public static function validateName(mixed $value): bool|string
+    {
+        return is_string($value) && strlen($value) >= 2;
     }
 
-    // delete (table, conditions)
-    $db->delete('table', array('field' => 'value'));
+    public static function validateAge(mixed $value): bool|string
+    {
+        return is_int($value) && $value >= 0;
+    }
+}
 
-    // transactions
-    $db->transaction(function() use ($somevar) {
-        $id = $db->insert(...);
-        $db->update(...);
+$table = $db->table('users', ['model' => UserModel::class]);
+$users = $table->select(); // Collection<UserModel>
+$one = $table->get(1);    // UserModel
 
-        if($condition) {
-            throw new \Exception('Error - transaction rolled back');
-        } else {
-            return $id;
-        }
-    });
+// create/update payload is auto-filtered/validated against the model
+$table->insert(['name' => 'Alice', 'age' => 31, 'ignored' => 'x']); // "ignored" is dropped
+```
 
-CRUD Operations
----------------
+## Extending `DB\\Table`
 
-    use Objectiveweb\DB;
+```php
+use Objectiveweb\DB\Table;
 
-    $db = new DB(...);
+class UserTable extends Table
+{
+    protected ?string $table = 'users';
 
-    $table = $db->table('tablename', [
+    protected ?array $params = [
         'pk' => 'id',
-        'join' => []
-    ]);
+        'join' => [],
+    ];
+}
 
-    // Insert
-    $id = $table->post(array('field' => 'value', ...);
+$table = $db->table(UserTable::class);
+$table->insert(['name' => 'Alice']);
+```
 
-    // Select all rows (returns DB\Collection)
-    $table->index();
+## Filter grammar
 
-    // Get parameters
-    $data = $table->index([ 
-        'filter' => [ 'field' => 'value' ], 
-        'sort' => ['id', 'asc'],
-        'range' => [ 0, 4 ]
-    ]);
+`where` arrays support:
 
-    // Number of results
-    count($data);
+- equality: `['id' => 10]`
+- negation: `['!status' => 'archived']`
+- `LIKE`: `['name' => 'Jo%']`
+- `IN`: `['id' => [1, 2, 3]]`
+- null checks: `['deleted_at' => null]`, `['!deleted_at' => null]`
 
-    // Total number of results (when using range)
-    $data->total();
+## Notes
 
-    foreach($data as $item) {
-        $item['field'];
-    }
+- Table and field identifiers are validated before SQL generation.
+- Raw string `where` clauses and raw join fragments are intentionally rejected for safety.
+- `Collection::render()` does not emit HTTP headers. Use `Collection::contentRange()` if you need a `Content-Range` response header.
 
-    // Update (key, values)
-    $affected_rows = $table->put(array('name' = 'new name'), array('name' => 'old name'));
+## Migration notes
 
-    // Update by ID
-    $affected_rows = $table->put(id, array('field' => 'new value'));
+- Low-level internals moved from direct PDO usage to Doctrine DBAL.
+- Pagination totals now use a dedicated `COUNT(*)` query instead of `SQL_CALC_FOUND_ROWS`.
+- Transaction helpers throw typed exceptions (`TransactionException`) when begin/commit/rollback fails.
+- Test suite defaults to SQLite in-memory, so local MySQL is no longer required.
 
+## Stability policy
 
-Extending DB\Table
-------------------
+- Semantic Versioning is used for public APIs.
+- Public stable APIs: `Objectiveweb\DB`, `Objectiveweb\DB\Table`, `Objectiveweb\DB\Collection`, `Objectiveweb\DB\Query`.
+- Internal/private helpers in `DB` (identifier parsing/compilation methods) are not part of the public contract.
 
-    class MyTable extends Objectiveweb\DB\Table {
-        var $table = 'table_name';
-        var $params = [
-            'pk => 'id',
-            'join' => []
-        ];
-    }
+## Test matrix (SQLite + MySQL + PostgreSQL)
 
-    // then, instantiate it
-    $table = $db->table('MyTable');
+- Default local run (SQLite): `vendor/bin/phpunit --testsuite sqlite`
+- MySQL run: `TEST_DB_DRIVER=mysql MYSQL_TEST_DSN=\"mysql:dbname=objectiveweb_test;host=127.0.0.1;port=3306;charset=utf8mb4\" MYSQL_TEST_USER=root MYSQL_TEST_PASSWORD=root vendor/bin/phpunit --testsuite mysql`
+- PostgreSQL run: `TEST_DB_DRIVER=pgsql PGSQL_TEST_DSN=\"pgsql:dbname=objectiveweb_test;host=127.0.0.1;port=5432\" PGSQL_TEST_USER=postgres PGSQL_TEST_PASSWORD=postgres vendor/bin/phpunit --testsuite pgsql`
 
-    $table->post(array('name' => 'new item'));
+### Run all databases in Docker
+
+```bash
+./scripts/test-docker.sh
+```

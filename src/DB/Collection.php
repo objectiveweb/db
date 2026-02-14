@@ -1,80 +1,91 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Objectiveweb\DB;
 
 class Collection implements \JsonSerializable, \ArrayAccess, \Countable, \IteratorAggregate
 {
-    private $data;
-    private $startIndex;
-    private $endIndex;
-    private $total;
+    /** @var list<mixed> */
+    private array $data;
+    private int $startIndex;
+    private int $endIndex;
+    private int $total;
 
-    function __construct($data, $startIndex = 0, $endIndex = null, $total = null)
+    /** @param list<mixed> $data */
+    public function __construct(array $data, int $startIndex = 0, ?int $endIndex = null, ?int $total = null)
     {
         $this->data = $data;
-
         $this->startIndex = $startIndex;
-        $this->endIndex = $endIndex === null ? count($data) - 1 : $endIndex;
-        $this->total = $total === null ? count($data) : $total;
-
+        $this->endIndex = $endIndex ?? (count($data) - 1);
+        $this->total = $total ?? count($data);
     }
 
-    function data($key = null)
+    /** @return list<mixed>|mixed */
+    public function data(?int $key = null): mixed
     {
         if ($key !== null) {
             return $this->data[$key];
-        } else {
-            return $this->data;
         }
+
+        return $this->data;
     }
 
-    public function total()
+    public function total(): int
     {
         return $this->total;
     }
 
-    function render($content_type = "")
+    public function contentRange(): string
     {
-        switch ($content_type) {
-            default:
-                header(sprintf("Content-Range: items %d-%d/%d", $this->startIndex, $this->endIndex, $this->total));
-                return json_encode($this->data);
-        }
+        return sprintf('items %d-%d/%d', $this->startIndex, $this->endIndex, $this->total);
     }
 
-    public function jsonSerialize()
+    public function render(string $contentType = 'application/json'): string
+    {
+        unset($contentType);
+        return json_encode($this->data, JSON_THROW_ON_ERROR);
+    }
+
+    /** @return list<mixed> */
+    public function jsonSerialize(): array
     {
         return $this->data;
     }
 
-    public function offsetExists($offset)
+    public function offsetExists(mixed $offset): bool
     {
-        return array_key_exists($offset, $this->data);
+        return array_key_exists((int) $offset, $this->data);
     }
 
-    public function &offsetGet($offset)
+    public function &offsetGet(mixed $offset): mixed
     {
-        return $this->data[$offset];
+        return $this->data[(int) $offset];
     }
 
-    public function offsetSet($offset, $value)
+    public function offsetSet(mixed $offset, mixed $value): void
     {
-        $this->data[$offset] = $value;
+        if ($offset === null) {
+            $this->data[] = $value;
+            return;
+        }
+
+        $this->data[(int) $offset] = $value;
     }
 
-    public function offsetUnset($offset)
+    public function offsetUnset(mixed $offset): void
     {
-        unset($this->data[$offset]);
+        unset($this->data[(int) $offset]);
     }
 
-    public function count()
+    public function count(): int
     {
         return count($this->data);
     }
 
-    public function &getIterator()
+    public function getIterator(): \Traversable
     {
-        foreach($this->data as $key => &$val) {
+        foreach ($this->data as $key => $val) {
             yield $key => $val;
         }
     }

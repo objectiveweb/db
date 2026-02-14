@@ -1,62 +1,55 @@
 <?php
-/**
- * Tests for the DB\Table
- */
+
 include dirname(__DIR__) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/DbTestBootstrap.php';
 
 use Objectiveweb\DB;
 use Objectiveweb\DB\Table;
+use PHPUnit\Framework\TestCase;
 
-class CrudTest extends PHPUnit_Framework_TestCase
+class CrudTest extends TestCase
 {
-    /** @var  Table */
-    static protected $table;
-    static protected $testData = [
+    protected static Table $table;
+
+    /** @var array<int,array<string,mixed>> */
+    protected static array $testData = [
         1 => ['name' => 'test', 'f1' => 'test', 'f2' => 'test', 'f3' => 'test'],
         2 => ['name' => 'test1', 'f1' => 'test1', 'f2' => 'test1', 'f3' => 'test1'],
         3 => ['name' => 'test2', 'f1' => 'test2', 'f2' => 'test2', 'f3' => 'test2'],
         4 => ['name' => 'test3', 'f1' => 'test3', 'f2' => 'test3', 'f3' => 'test3'],
-        5 => ['name' => null, 'f1' => 'test3', 'f2' => 'test3', 'f3' => 'test3']
+        5 => ['name' => null, 'f1' => 'test3', 'f2' => 'test3', 'f3' => 'test3'],
     ];
 
-    public static function setUpBeforeClass()
+    public static function setUpBeforeClass(): void
     {
-        $db = DB::connect('mysql:dbname=objectiveweb;host=127.0.0.1', 'root', getenv('MYSQL_PASSWORD'));
-        $db->query('drop table if exists db_test')->exec();
-
-        $db->query('create table db_test
-            (`id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                `name` VARCHAR(255), `f1` VARCHAR(255), `f2` VARCHAR(255), `f3` VARCHAR(255));')->exec();
-
-        self::$table = $db->table('db_test');
-
+        $db = DbTestBootstrap::connect();
+        DbTestBootstrap::createDbTestTable($db, true);
+        static::$table = $db->table('db_test');
     }
 
-    public function testInsert()
+    public function testInsert(): void
     {
         foreach (self::$testData as $k => $v) {
-            $id = self::$table->post($v);
-            $this->assertEquals($k, $id['id']);
+            $id = static::$table->insert($v);
+            $this->assertEquals($k, (int) $id['id']);
         }
     }
 
-    /**
-     * @depends testInsert
-     */
-    public function testIndex()
+    /** @depends testInsert */
+    public function testIndex(): void
     {
-        $rows = self::$table->index();
+        $rows = static::$table->select();
 
         $this->assertEquals(5, count($rows));
         $this->assertEquals('test', $rows[0]['name']);
 
-        $rows = self::$table->get();
+        $rows = static::$table->get();
 
         $this->assertEquals(5, count($rows));
         $this->assertEquals('test', $rows[0]['name']);
 
         $count = 0;
-        foreach ($rows as $key => $value) {
+        foreach ($rows as $value) {
             $this->assertEquals(self::$testData[$value['id']]['name'], $value['name']);
             $count++;
         }
@@ -64,73 +57,79 @@ class CrudTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(5, $count);
     }
 
-    /**
-     * @depends testInsert
-     */
-    public function testFields() {
-        $data = self:: $table->index(['fields' => ['id', 'f1', 'f2']]);
+    /** @depends testInsert */
+    public function testFields(): void
+    {
+        $data = static::$table->select([], ['fields' => ['id', 'f1', 'f2']]);
 
-        foreach($data as $result) {
+        foreach ($data as $result) {
             $this->assertCount(3, $result);
             $this->assertEquals($result['f1'], self::$testData[$result['id']]['f1']);
             $this->assertEquals($result['f2'], self::$testData[$result['id']]['f2']);
         }
     }
 
-    /**
-     * @depends testInsert
-     */
-    public function testPagination()
+    /** @depends testInsert */
+    public function testPagination(): void
     {
-        $data = self::$table->index(array('range' => [0, 1], 'sort' => ['id', 'asc']));
+        $data = static::$table->select([], ['range' => [0, 1], 'sort' => ['id', 'asc']]);
 
         $this->assertEquals(2, count($data));
         $this->assertEquals('test', $data[0]['name']);
         $this->assertEquals('test1', $data[1]['name']);
         $this->assertEquals(5, $data->total());
 
-        $data = self::$table->index(array('range' => [2, 3], 'sort' => ['id', 'asc']));
+        $data = static::$table->select([], ['range' => [2, 3], 'sort' => ['id', 'asc']]);
 
         $this->assertEquals(2, count($data));
         $this->assertEquals('test2', $data[0]['name']);
         $this->assertEquals('test3', $data[1]['name']);
         $this->assertEquals(5, $data->total());
 
-        $data = self::$table->index(array('range' => [4, 5], 'sort' => ['id', 'asc']));
+        $data = static::$table->select([], ['range' => [4, 5], 'sort' => ['id', 'asc']]);
 
         $this->assertEquals(1, count($data));
         $this->assertEquals(null, $data[0]['name']);
         $this->assertEquals(5, $data->total());
     }
 
-    /**
-     * @depends testPagination
-     */
-    public function testUpdate()
+    /** @depends testInsert */
+    public function testMultipleSortFields(): void
     {
-        $r = self::$table->put(array('name' => 'test1'), array('name' => 'test4'));
+        $data = static::$table->select([], [
+            'sort' => [
+                ['f3', 'desc'],
+                ['id', 'asc'],
+            ],
+        ]);
+
+        $this->assertEquals(5, count($data));
+        $this->assertEquals(4, (int) $data[0]['id']);
+        $this->assertEquals(5, (int) $data[1]['id']);
+    }
+
+    /** @depends testPagination */
+    public function testUpdate(): void
+    {
+        $r = static::$table->update(['name' => 'test1'], ['name' => 'test4']);
 
         $this->assertEquals(1, $r['updated']);
     }
 
-    /**
-     * @depends testUpdate
-     */
-    public function testGetCollection()
+    /** @depends testUpdate */
+    public function testGetCollection(): void
     {
-        $r = self::$table->get(['filter' => ['name' => 'test4']]);
+        $r = static::$table->get(['name' => 'test4']);
         $this->assertNotEmpty($r);
 
         $this->assertEquals('2', $r[0]['id']);
         $this->assertEquals('test4', $r[0]['name']);
     }
 
-    /**
-     * @depends testUpdate
-     */
-    public function testGetParams()
+    /** @depends testUpdate */
+    public function testGetParams(): void
     {
-        $r = self::$table->get(1, array('fields' => 'name'));
+        $r = static::$table->get(1, ['fields' => 'name']);
 
         $this->assertNotEmpty($r);
 
@@ -138,42 +137,35 @@ class CrudTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('test', $r['name']);
     }
 
-    /**
-     * @depends testUpdate
-     */
-    public function testUpdateKey()
+    /** @depends testUpdate */
+    public function testUpdateKey(): void
     {
-        $r = self::$table->put(3, array('name' => 'test2.1'));
+        $r = static::$table->update(3, ['name' => 'test2.1']);
 
         $this->assertEquals(1, $r['updated']);
     }
 
-    /**
-     * @depends testUpdateKey
-     */
-    public function testSelectKey()
+    /** @depends testUpdateKey */
+    public function testSelectKey(): void
     {
-        $r = self::$table->get(3);
+        $r = static::$table->get(3);
 
         $this->assertEquals('test2.1', $r['name']);
     }
 
-    /**
-     * @depends testSelectKey
-     */
-    public function testDelete()
+    /** @depends testSelectKey */
+    public function testDelete(): void
     {
-        $data = self::$table->index();
+        $data = static::$table->select();
         $this->assertEquals($data->total(), 5);
 
-        $r = self::$table->delete(array('name' => 'test1'));
+        $r = static::$table->delete(['name' => 'test1']);
         $this->assertEquals(0, $r);
 
-        $r = self::$table->delete(array('name' => 'test4'));
+        $r = static::$table->delete(['name' => 'test4']);
         $this->assertEquals(1, $r);
 
-        $data = self::$table->index();
+        $data = static::$table->select();
         $this->assertEquals($data->total(), 4);
     }
-
 }

@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: objectiveweb_test
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  pgsql:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: objectiveweb_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d objectiveweb_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /app
+    volumes:
+      - ./:/app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      pgsql:
+        condition: service_healthy
+    environment:
+      MYSQL_TEST_DSN: mysql:dbname=objectiveweb_test;host=mysql;port=3306;charset=utf8mb4
+      MYSQL_TEST_USER: root
+      MYSQL_TEST_PASSWORD: root
+      MYSQL_TEST_HOST: mysql
+      MYSQL_TEST_PORT: "3306"
+      MYSQL_TEST_DB: objectiveweb_test
+      PGSQL_TEST_DSN: pgsql:dbname=objectiveweb_test;host=pgsql;port=5432
+      PGSQL_TEST_USER: postgres
+      PGSQL_TEST_PASSWORD: postgres
+      PGSQL_TEST_HOST: pgsql
+      PGSQL_TEST_PORT: "5432"
+      PGSQL_TEST_DB: objectiveweb_test
+    command: ["bash", "-lc", "sleep infinity"]
