@@ -16,7 +16,7 @@ class PgSQLCompatibilityTest extends TestCase
             $this->markTestSkipped('PGSQL_TEST_DSN not configured.');
         }
 
-        $this->db = DB::connect(
+        $this->db = new DB(
             $dsn,
             getenv('PGSQL_TEST_USER') ?: 'postgres',
             getenv('PGSQL_TEST_PASSWORD') ?: 'postgres'

@@ -9,7 +9,7 @@ final class DbTestBootstrap
     public static function connect(): DB
     {
         return match (self::driver()) {
-            'mysql' => DB::connect(
+            'mysql' => new DB(
                 getenv('MYSQL_TEST_DSN') ?: sprintf(
                     'mysql:dbname=%s;host=%s;port=%s;charset=utf8mb4',
                     getenv('MYSQL_TEST_DB') ?: 'objectiveweb_test',
@@ -19,7 +19,7 @@ final class DbTestBootstrap
                 getenv('MYSQL_TEST_USER') ?: 'root',
                 getenv('MYSQL_TEST_PASSWORD') ?: 'root'
             ),
-            'pgsql' => DB::connect(
+            'pgsql' => new DB(
                 getenv('PGSQL_TEST_DSN') ?: sprintf(
                     'pgsql:dbname=%s;host=%s;port=%s',
                     getenv('PGSQL_TEST_DB') ?: 'objectiveweb_test',
@@ -29,7 +29,7 @@ final class DbTestBootstrap
                 getenv('PGSQL_TEST_USER') ?: 'postgres',
                 getenv('PGSQL_TEST_PASSWORD') ?: 'postgres'
             ),
-            default => DB::connect(getenv('SQLITE_TEST_DSN') ?: 'sqlite::memory:'),
+            default => new DB(getenv('SQLITE_TEST_DSN') ?: 'sqlite::memory:'),
         };
     }
 

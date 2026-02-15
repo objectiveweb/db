@@ -13,7 +13,13 @@ composer require objectiveweb/db doctrine/dbal
 ```php
 use Objectiveweb\DB;
 
-$db = DB::connect('mysql:dbname=app;host=127.0.0.1', 'user', 'secret');
+$db = new DB('mysql:dbname=app;host=127.0.0.1', 'user', 'secret', [
+    'prefix' => 'myprefix_',
+]);
+```
+
+```php
+use Objectiveweb\DB;
 
 // Raw query
 $db->query('CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255))')->exec();
@@ -68,7 +74,7 @@ $db->transaction(function (DB $db) {
 ```php
 use Objectiveweb\DB;
 
-$db = DB::connect('mysql:dbname=app;host=127.0.0.1', 'user', 'secret');
+$db = new DB('mysql:dbname=app;host=127.0.0.1', 'user', 'secret');
 
 $table = $db->table('users', [
     'pk' => 'id',

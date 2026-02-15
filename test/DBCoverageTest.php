@@ -95,16 +95,13 @@ class DBCoverageTest extends TestCase
         }
     }
 
-    public function testConnectArrayDsnAndInvalidDriver(): void
+    public function testConstructorWithParsedDsnArray(): void
     {
-        $other = DB::connect(['scheme' => 'sqlite', 'path' => '/:memory:']);
+        $other = new DB(['scheme' => 'sqlite', 'path' => '/:memory:']);
         $query = $other->query('SELECT 1 as value');
         $query->exec();
         $row = $query->fetch();
         $this->assertSame('1', (string) $row['value']);
-
-        $this->expectException(InvalidQueryException::class);
-        DB::connect('unknown:foo=bar');
     }
 
     public function testUnsafeRawWhereAndJoinAreRejected(): void

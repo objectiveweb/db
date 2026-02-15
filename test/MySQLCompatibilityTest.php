@@ -16,7 +16,7 @@ class MySQLCompatibilityTest extends TestCase
             $this->markTestSkipped('MYSQL_TEST_DSN not configured.');
         }
 
-        $this->db = DB::connect(
+        $this->db = new DB(
             $dsn,
             getenv('MYSQL_TEST_USER') ?: 'root',
             getenv('MYSQL_TEST_PASSWORD') ?: 'root'

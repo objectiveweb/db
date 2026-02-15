@@ -20,21 +20,10 @@ class DB
 
     private string $prefix;
 
-    public function __construct(Connection $connection, ?string $prefix = null)
+    public function __construct(string|array $dsn, ?string $username = null, string $password = '', array $options = [])
     {
-        $this->connection = $connection;
-        $this->prefix = $prefix ?? '';
-    }
 
-    /**
-     * Creates a DB instance from DSN or parsed-url array.
-     *
-     * @param string|array<string,mixed> $dsn
-     * @param array<string,mixed> $options
-     */
-    public static function connect(string|array $dsn, ?string $username = null, string $password = '', array $options = []): self
-    {
-        $prefix = isset($options['prefix']) ? (string) $options['prefix'] : '';
+        $this->prefix = isset($options['prefix']) ? (string) $options['prefix'] : '';
         unset($options['prefix']);
 
         if (is_array($dsn)) {
@@ -43,7 +32,7 @@ class DB
             $params = self::fromDsnString($dsn, $username, $password, $options);
         }
 
-        return new self(DriverManager::getConnection($params), $prefix);
+        $this->connection = DriverManager::getConnection($params);
     }
 
     public function query(string $sql, mixed ...$args): Query
