@@ -19,6 +19,8 @@ class SQLBehaviorCoverageTest extends TestCase
 
         $this->db->query('DROP TABLE IF EXISTS item_meta')->exec();
         $this->db->query('DROP TABLE IF EXISTS items')->exec();
+        $this->db->query('DROP TABLE IF EXISTS person_links')->exec();
+        $this->db->query('DROP TABLE IF EXISTS people')->exec();
 
         $this->db->query(sprintf(
             'CREATE TABLE items (%s, name VARCHAR(255), kind VARCHAR(50), score INTEGER, deleted_at VARCHAR(25))',
@@ -29,6 +31,14 @@ class SQLBehaviorCoverageTest extends TestCase
             'CREATE TABLE item_meta (%s, item_id INTEGER, tag VARCHAR(50))',
             $this->idDefinition()
         ))->exec();
+        $this->db->query(sprintf(
+            'CREATE TABLE people (%s, name VARCHAR(255))',
+            $this->idDefinition()
+        ))->exec();
+        $this->db->query(sprintf(
+            'CREATE TABLE person_links (%s, child_id INTEGER, parent_a_id INTEGER, parent_b_id INTEGER)',
+            $this->idDefinition()
+        ))->exec();
 
         $this->db->insert('items', ['name' => 'alpha', 'kind' => 'x', 'score' => 10, 'deleted_at' => null]);
         $this->db->insert('items', ['name' => 'beta', 'kind' => 'x', 'score' => 20, 'deleted_at' => '2025-01-01']);
@@ -36,6 +46,11 @@ class SQLBehaviorCoverageTest extends TestCase
 
         $this->db->insert('item_meta', ['item_id' => 1, 'tag' => 't1']);
         $this->db->insert('item_meta', ['item_id' => 2, 'tag' => 't2']);
+
+        $this->db->insert('people', ['name' => 'child']);
+        $this->db->insert('people', ['name' => 'parent_a']);
+        $this->db->insert('people', ['name' => 'parent_b']);
+        $this->db->insert('person_links', ['child_id' => 1, 'parent_a_id' => 2, 'parent_b_id' => 3]);
     }
 
     public function testWhereOperatorBranches(): void
@@ -82,13 +97,83 @@ class SQLBehaviorCoverageTest extends TestCase
     {
         $rows = $this->db->select('items', null, [
             'fields' => ['items.id', 'items.name', 'm.tag'],
-            'join' => ['*item_meta m' => 'm.item_id = items.id'],
+            'join' => ['left:item_meta m' => 'm.item_id = items.id'],
             'order' => 'items.id DESC, items.name ASC',
         ])->all();
 
         $this->assertCount(3, $rows);
         $this->assertSame('gamma', $rows[0]['name']);
         $this->assertNull($rows[0]['tag']);
+    }
+
+    public function testJoinSameTableTwiceWithDifferentAliases(): void
+    {
+        $rows = $this->db->select('person_links', ['person_links.child_id' => 1], [
+            'fields' => [
+                'person_links.child_id',
+                'parent_a_name' => 'p1.name',
+                'parent_b_name' => 'p2.name',
+            ],
+            'join' => [
+                'inner:people p1' => 'p1.id = person_links.parent_a_id',
+                'inner:people p2' => 'p2.id = person_links.parent_b_id',
+            ],
+        ])->all();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('parent_a', $rows[0]['parent_a_name']);
+        $this->assertSame('parent_b', $rows[0]['parent_b_name']);
+    }
+
+    public function testCrossJoinWithStructuredFormat(): void
+    {
+        $rows = $this->db->select('items', ['items.id' => 1], [
+            'fields' => ['item_name' => 'items.name', 'person_name' => 'p.name'],
+            'join' => [
+                ['type' => 'cross', 'table' => 'people', 'alias' => 'p'],
+            ],
+        ])->all();
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('alpha', $rows[0]['item_name']);
+    }
+
+    public function testRightJoinSupport(): void
+    {
+        if ($this->driver() === 'sqlite') {
+            $this->markTestSkipped('RIGHT JOIN is not supported by SQLite.');
+        }
+
+        $rows = $this->db->select('people', ['people.name' => 'parent_a'], [
+            'fields' => [
+                'parent_name' => 'people.name',
+                'child_name' => 'p2.name',
+            ],
+            'join' => [
+                ['type' => 'right', 'table' => 'person_links', 'alias' => 'l', 'on' => 'l.parent_a_id = people.id'],
+                ['type' => 'inner', 'table' => 'people', 'alias' => 'p2', 'on' => 'p2.id = l.child_id'],
+            ],
+        ])->all();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('parent_a', $rows[0]['parent_name']);
+        $this->assertSame('child', $rows[0]['child_name']);
+    }
+
+    public function testFullOuterJoinSupport(): void
+    {
+        if ($this->driver() !== 'pgsql') {
+            $this->markTestSkipped('FULL OUTER JOIN test runs on PostgreSQL only.');
+        }
+
+        $rows = $this->db->select('people', null, [
+            'fields' => ['people.id', 'p2.id'],
+            'join' => [
+                ['type' => 'full', 'table' => 'people', 'alias' => 'p2', 'on' => 'p2.id = people.id'],
+            ],
+        ])->all();
+
+        $this->assertCount(3, $rows);
     }
 
     public function testMutationSafetyAndInvalidSqlInputs(): void
@@ -130,5 +215,10 @@ class SQLBehaviorCoverageTest extends TestCase
             'pgsql' => 'id SERIAL PRIMARY KEY',
             default => 'id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL',
         };
+    }
+
+    private function driver(): string
+    {
+        return (string) (getenv('TEST_DB_DRIVER') ?: 'sqlite');
     }
 }

@@ -170,6 +170,50 @@ $table->insert(['name' => 'Alice']);
 - `IN`: `['id' => [1, 2, 3]]`
 - null checks: `['deleted_at' => null]`, `['!deleted_at' => null]`
 
+## Joins
+
+`select()` accepts joins via `params['join']`.
+
+### Legacy join map (backward compatible)
+
+```php
+$rows = $db->select('person_links', [], [
+    'join' => [
+        'inner:people p1' => 'p1.id = person_links.parent_a_id',
+        'left:people p2'  => 'p2.id = person_links.parent_b_id',
+        'right:people p3' => 'p3.id = person_links.child_id',
+        'full:people p4'  => 'p4.id = person_links.child_id',
+        'cross:calendar c' => '',
+        'festival f'      => 'f.id = person_links.child_id', // no prefix => plain JOIN (DB default)
+    ],
+]);
+```
+
+### Structured join list (recommended)
+
+```php
+$rows = $db->select('person_links', [], [
+    'join' => [
+        ['type' => 'inner', 'table' => 'people', 'alias' => 'p1', 'on' => 'p1.id = person_links.parent_a_id'],
+        ['type' => 'left',  'table' => 'people', 'alias' => 'p2', 'on' => 'p2.id = person_links.parent_b_id'],
+        ['type' => 'right', 'table' => 'people', 'alias' => 'p3', 'on' => 'p3.id = person_links.child_id'],
+        ['type' => 'full',  'table' => 'people', 'alias' => 'p4', 'on' => 'p4.id = person_links.child_id'],
+        ['type' => 'cross', 'table' => 'calendar', 'alias' => 'c'],
+    ],
+]);
+```
+
+Supported `type` values:
+- `inner`
+- `left`
+- `right`
+- `full` (rendered as `FULL OUTER JOIN`)
+- `cross`
+
+Dialect note:
+- `RIGHT JOIN` is not supported by SQLite.
+- `FULL OUTER JOIN` is PostgreSQL-only in this project test matrix.
+
 ## Notes
 
 - Table and field identifiers are validated before SQL generation.

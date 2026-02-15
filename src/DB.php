@@ -438,7 +438,17 @@ class DB
     }
 
     /**
-     * @param array<int|string,string> $join
+     * Join formats:
+     * - Legacy map: ['left:table alias' => 'alias.id = base.ref'].
+     *   Supported prefixes: inner:, left:, right:, full:, cross:
+     *   If no prefix is provided, plain JOIN is used (database default join behavior).
+     * - Structured list:
+     *   [
+     *     ['type' => 'left', 'table' => 'people', 'alias' => 'p', 'on' => 'p.id = t.person_id'],
+     *     ['type' => 'cross', 'table' => 'calendar', 'alias' => 'c'],
+     *   ]
+     *
+     * @param array<int|string,mixed> $join
      * @return array{0:string,1:array<string,mixed>}
      */
     private function compileJoin(array $join, string $baseAlias): array
@@ -451,34 +461,108 @@ class DB
 
         foreach ($join as $key => $value) {
             if (is_int($key)) {
-                throw new InvalidQueryException('Raw JOIN strings are disabled. Use table=>condition syntax.');
+                if (!is_array($value)) {
+                    throw new InvalidQueryException('Raw JOIN strings are disabled. Use structured join arrays.');
+                }
+
+                $parts[] = $this->compileStructuredJoin($value);
+                continue;
             }
 
-            $tableDef = trim((string) $key);
-            $left = false;
-
-            if ($tableDef !== '' && $tableDef[0] === '*') {
-                $left = true;
-                $tableDef = ltrim($tableDef, '*');
-            }
-
-            [$table, $alias] = $this->parseTableAlias($tableDef);
+            [$joinType, $tableDef] = $this->extractLegacyJoinType((string) $key);
+            [$table, $alias] = $this->parseTableAlias(trim($tableDef));
             $condition = trim((string) $value);
-            if ($condition === '') {
+            if ($condition === '' && $joinType !== 'CROSS JOIN') {
                 throw new InvalidQueryException('Join condition cannot be empty');
             }
 
-            $parts[] = sprintf(
-                '%s JOIN %s %s ON %s',
-                $left ? 'LEFT' : 'INNER',
-                $this->quoteIdentifier($this->prefix . $table),
-                $this->quoteIdentifier($alias),
-                $condition
-            );
+            $parts[] = $this->renderJoinClause($joinType, $table, $alias, $condition);
         }
 
         unset($baseAlias);
         return [implode(' ', $parts), []];
+    }
+
+    /** @param array<string,mixed> $join */
+    private function compileStructuredJoin(array $join): string
+    {
+        if (!isset($join['table']) || !is_string($join['table']) || trim($join['table']) === '') {
+            throw new InvalidQueryException('Structured join requires a non-empty table');
+        }
+
+        $joinType = $this->normalizeJoinType($join['type'] ?? 'inner');
+        $table = $this->assertIdentifier(trim($join['table']));
+        $alias = isset($join['alias']) && is_string($join['alias']) && $join['alias'] !== ''
+            ? $this->assertIdentifier(trim($join['alias']))
+            : $table;
+
+        $condition = isset($join['on']) ? trim((string) $join['on']) : '';
+        if ($joinType !== 'CROSS JOIN' && $condition === '') {
+            throw new InvalidQueryException('Join condition cannot be empty');
+        }
+
+        return $this->renderJoinClause($joinType, $table, $alias, $condition);
+    }
+
+    /** @return array{0:string,1:string} */
+    private function extractLegacyJoinType(string $tableDef): array
+    {
+        $tableDef = trim($tableDef);
+        if ($tableDef === '') {
+            throw new InvalidQueryException('Invalid table definition');
+        }
+
+        if (!str_contains($tableDef, ':')) {
+            return ['JOIN', $tableDef];
+        }
+
+        [$type, $remainder] = explode(':', $tableDef, 2);
+        $type = strtolower(trim($type));
+        $remainder = trim($remainder);
+
+        if ($remainder === '') {
+            throw new InvalidQueryException('Invalid table definition');
+        }
+
+        if (!in_array($type, ['inner', 'left', 'right', 'full', 'cross'], true)) {
+            return ['JOIN', $tableDef];
+        }
+
+        return [$this->normalizeJoinType($type), $remainder];
+    }
+
+    private function normalizeJoinType(mixed $type): string
+    {
+        if (!is_string($type) || trim($type) === '') {
+            throw new InvalidQueryException('Invalid join type');
+        }
+
+        $normalized = strtolower(trim($type));
+        return match ($normalized) {
+            'inner', 'inner join' => 'INNER JOIN',
+            'join' => 'JOIN',
+            'left', 'left join', 'left outer', 'left outer join' => 'LEFT JOIN',
+            'right', 'right join', 'right outer', 'right outer join' => 'RIGHT JOIN',
+            'full', 'full join', 'full outer', 'full outer join' => 'FULL OUTER JOIN',
+            'cross', 'cross join' => 'CROSS JOIN',
+            default => throw new InvalidQueryException('Unsupported join type'),
+        };
+    }
+
+    private function renderJoinClause(string $joinType, string $table, string $alias, string $condition): string
+    {
+        $base = sprintf(
+            '%s %s %s',
+            $joinType,
+            $this->quoteIdentifier($this->prefix . $table),
+            $this->quoteIdentifier($alias)
+        );
+
+        if ($joinType === 'CROSS JOIN') {
+            return $base;
+        }
+
+        return $base . ' ON ' . $condition;
     }
 
     private function compileGroup(mixed $group): string
