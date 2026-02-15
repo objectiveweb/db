@@ -122,7 +122,7 @@ class Table
         }
 
         $params = $this->parseParams($params);
-        $where = [(string) $this->params['pk'] => $key];
+        $where = ["{$this->table}.{$this->params['pk']}" => $key];
         $query = $this->db->select((string) $this->table, $where, array_merge($params, ['limit' => 1]));
 
         $record = $query->fetch();
