@@ -392,7 +392,7 @@ class DB
 
             $rendered = $this->compileFieldToken($field);
             if (!is_int($alias)) {
-                $rendered .= ' AS ' . $this->quoteIdentifier($this->assertIdentifier((string) $alias));
+                $rendered .= ' AS ' . $this->quoteSingleIdentifier($this->assertIdentifier((string) $alias));
             }
             $compiled[] = $rendered;
         }
@@ -421,6 +421,42 @@ class DB
             $function = strtoupper($matches[1]);
             $target = $matches[2] === '*' ? '*' : $this->quoteIdentifierPath($this->assertIdentifier($matches[2]));
             return sprintf('%s(%s)', $function, $target);
+        }
+
+        if (preg_match(
+            '/^COUNT\(\s*CASE\s+WHEN\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s+IS\s+(NOT\s+)?NULL\s+THEN\s+(-?\d+)(?:\s+ELSE\s+(-?\d+))?\s+END\s*\)$/i',
+            $field,
+            $matches
+        ) === 1) {
+            $target = $this->quoteIdentifierPath($this->assertIdentifier($matches[1]));
+            $not = isset($matches[2]) && trim($matches[2]) !== '' ? 'NOT ' : '';
+            $thenValue = $matches[3];
+            $elseClause = isset($matches[4]) && $matches[4] !== '' ? ' ELSE ' . $matches[4] : '';
+
+            return sprintf(
+                'COUNT(CASE WHEN %s IS %sNULL THEN %s%s END)',
+                $target,
+                $not,
+                $thenValue,
+                $elseClause
+            );
+        }
+
+        if (preg_match('/^COALESCE\((.+)\)$/i', $field, $matches) === 1) {
+            $arguments = array_map('trim', explode(',', $matches[1]));
+            if (count($arguments) < 2) {
+                throw new InvalidQueryException('COALESCE expects at least two identifiers');
+            }
+
+            $quoted = [];
+            foreach ($arguments as $argument) {
+                if ($argument === '') {
+                    throw new InvalidQueryException('COALESCE expects valid identifier arguments');
+                }
+                $quoted[] = $this->quoteIdentifierPath($this->assertIdentifier($argument));
+            }
+
+            return sprintf('COALESCE(%s)', implode(', ', $quoted));
         }
 
         return $this->quoteIdentifierPath($this->assertIdentifier($field));
@@ -672,6 +708,11 @@ class DB
     private function quoteIdentifier(string $identifier): string
     {
         return $this->connection->quoteIdentifier($identifier);
+    }
+
+    private function quoteSingleIdentifier(string $identifier): string
+    {
+        return $this->connection->quoteSingleIdentifier($identifier);
     }
 
     /**

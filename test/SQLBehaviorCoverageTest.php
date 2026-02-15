@@ -107,6 +107,73 @@ class SQLBehaviorCoverageTest extends TestCase
         $this->assertEqualsWithDelta(15.0, (float) $row['avg_score'], 0.00001);
     }
 
+    public function testSelectSupportsCountCaseWhenFunctionFields(): void
+    {
+        $row = $this->db->select('items', null, [
+            'fields' => [
+                'activated_count' => 'COUNT(CASE WHEN items.deleted_at IS NOT NULL THEN 1 END)',
+                'inactive_score_count' => 'COUNT(CASE WHEN items.score IS NULL THEN 1 END)',
+            ],
+        ])->fetch();
+
+        $this->assertNotFalse($row);
+        $this->assertSame('1', (string) $row['activated_count']);
+        $this->assertSame('0', (string) $row['inactive_score_count']);
+    }
+
+    public function testSelectSupportsCoalesceFunctionFields(): void
+    {
+        $rows = $this->db->select('items', null, [
+            'fields' => [
+                'items.id',
+                'display_tag' => 'coalesce(m.tag, items.kind)',
+            ],
+            'join' => ['left:item_meta m' => 'm.item_id = items.id'],
+            'order' => 'items.id ASC',
+        ])->all();
+
+        $this->assertCount(3, $rows);
+        $this->assertSame('t1', $rows[0]['display_tag']);
+        $this->assertSame('t2', $rows[1]['display_tag']);
+        $this->assertSame('y', $rows[2]['display_tag']);
+    }
+
+    public function testSelectSupportsDottedAliases(): void
+    {
+        $row = $this->db->select('items', ['items.id' => 1], [
+            'fields' => [
+                'item.name' => 'items.name',
+                'item.kind' => 'items.kind',
+            ],
+        ])->fetch();
+
+        $this->assertNotFalse($row);
+        $this->assertArrayHasKey('item.name', $row);
+        $this->assertArrayHasKey('item.kind', $row);
+        $this->assertSame('alpha', $row['item.name']);
+        $this->assertSame('x', $row['item.kind']);
+    }
+
+    public function testSelectRejectsInvalidCountCaseWhenFunctionFields(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->db->select('items', null, [
+            'fields' => [
+                'bad' => 'COUNT(CASE WHEN items.deleted_at IS NOT NULL THEN END)',
+            ],
+        ])->all();
+    }
+
+    public function testSelectRejectsInvalidCoalesceFunctionFields(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->db->select('items', null, [
+            'fields' => [
+                'bad' => 'coalesce(items.name)',
+            ],
+        ])->all();
+    }
+
     public function testJoinVariantsAndOrderList(): void
     {
         $rows = $this->db->select('items', null, [
