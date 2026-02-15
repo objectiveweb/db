@@ -33,6 +33,15 @@ $rows = $db->select('users', ['id' => [1, 2, 3]])->all();
 // Select with LIKE
 $rows = $db->select('users', ['name' => 'Ali%'])->all();
 
+// Select with SQL functions
+$stats = $db->select('users', [], [
+    'fields' => [
+        'total' => 'COUNT(*)',
+        'avg_age' => 'AVG(age)',
+        'max_age' => 'MAX(age)',
+    ],
+])->fetch();
+
 // Map by field
 $byId = $db->select('users')->map('id');
 
@@ -169,6 +178,34 @@ $table->insert(['name' => 'Alice']);
 - `LIKE`: `['name' => 'Jo%']`
 - `IN`: `['id' => [1, 2, 3]]`
 - null checks: `['deleted_at' => null]`, `['!deleted_at' => null]`
+
+## SQL function fields
+
+You can use SQL functions in `params['fields']` and alias them with array keys.
+
+```php
+$row = $db->select('orders', ['status' => 'paid'], [
+    'fields' => [
+        'total_orders' => 'COUNT(*)',
+        'avg_total' => 'AVG(total)',
+        'max_total' => 'MAX(total)',
+    ],
+])->fetch();
+```
+
+Grouped aggregate example:
+
+```php
+$rows = $db->select('orders', null, [
+    'fields' => [
+        'customer_id',
+        'orders_count' => 'COUNT(*)',
+        'avg_total' => 'AVG(total)',
+    ],
+    'group' => 'customer_id',
+    'order' => 'customer_id ASC',
+])->all();
+```
 
 ## Joins
 

@@ -93,6 +93,20 @@ class SQLBehaviorCoverageTest extends TestCase
         $this->assertSame('alpha', $onlyTableWildcard['name']);
     }
 
+    public function testSelectSupportsCountAndAvgFunctionFields(): void
+    {
+        $row = $this->db->select('items', ['kind' => 'x'], [
+            'fields' => [
+                'total' => 'COUNT(*)',
+                'avg_score' => 'AVG(score)',
+            ],
+        ])->fetch();
+
+        $this->assertNotFalse($row);
+        $this->assertSame('2', (string) $row['total']);
+        $this->assertEqualsWithDelta(15.0, (float) $row['avg_score'], 0.00001);
+    }
+
     public function testJoinVariantsAndOrderList(): void
     {
         $rows = $this->db->select('items', null, [
