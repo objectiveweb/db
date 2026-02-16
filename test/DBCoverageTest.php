@@ -47,6 +47,65 @@ class DBCoverageTest extends TestCase
         $this->assertSame(4, $this->db->count('users'));
     }
 
+    public function testNestedTransactionsCommit(): void
+    {
+        $this->db->transaction(function (DB $db): void {
+            $db->insert('users', ['name' => 'outer-ok', 'group_name' => 'n', 'is_active' => true]);
+
+            $db->transaction(function (DB $db): void {
+                $db->insert('users', ['name' => 'inner-ok', 'group_name' => 'n', 'is_active' => true]);
+            });
+        });
+
+        $this->assertSame(5, $this->db->count('users'));
+        $this->assertSame(1, $this->db->count('users', ['name' => 'outer-ok']));
+        $this->assertSame(1, $this->db->count('users', ['name' => 'inner-ok']));
+    }
+
+    public function testNestedTransactionsInnerRollbackAndOuterCommit(): void
+    {
+        $this->db->transaction(function (DB $db): void {
+            $db->insert('users', ['name' => 'outer-before', 'group_name' => 'n', 'is_active' => true]);
+
+            try {
+                $db->transaction(function (DB $db): void {
+                    $db->insert('users', ['name' => 'inner-fail', 'group_name' => 'n', 'is_active' => true]);
+                    throw new RuntimeException('inner failure');
+                });
+            } catch (RuntimeException $e) {
+                $this->assertSame('inner failure', $e->getMessage());
+            }
+
+            $db->insert('users', ['name' => 'outer-after', 'group_name' => 'n', 'is_active' => true]);
+        });
+
+        $this->assertSame(5, $this->db->count('users'));
+        $this->assertSame(1, $this->db->count('users', ['name' => 'outer-before']));
+        $this->assertSame(0, $this->db->count('users', ['name' => 'inner-fail']));
+        $this->assertSame(1, $this->db->count('users', ['name' => 'outer-after']));
+    }
+
+    public function testNestedTransactionsUncaughtInnerErrorRollsBackOuter(): void
+    {
+        try {
+            $this->db->transaction(function (DB $db): void {
+                $db->insert('users', ['name' => 'outer-uncaught', 'group_name' => 'n', 'is_active' => true]);
+
+                $db->transaction(function (DB $db): void {
+                    $db->insert('users', ['name' => 'inner-uncaught', 'group_name' => 'n', 'is_active' => true]);
+                    throw new RuntimeException('nested uncaught');
+                });
+            });
+            $this->fail('Expected RuntimeException');
+        } catch (RuntimeException $e) {
+            $this->assertSame('nested uncaught', $e->getMessage());
+        }
+
+        $this->assertSame(3, $this->db->count('users'));
+        $this->assertSame(0, $this->db->count('users', ['name' => 'outer-uncaught']));
+        $this->assertSame(0, $this->db->count('users', ['name' => 'inner-uncaught']));
+    }
+
     public function testManualTransactionMethods(): void
     {
         $this->assertTrue($this->db->beginTransaction());
