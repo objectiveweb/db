@@ -83,9 +83,9 @@ class Collection implements \JsonSerializable, \ArrayAccess, \Countable, \Iterat
         return count($this->data);
     }
 
-    public function getIterator(): \Traversable
+    public function &getIterator(): \Traversable
     {
-        foreach ($this->data as $key => $val) {
+        foreach ($this->data as $key => &$val) {
             yield $key => $val;
         }
     }

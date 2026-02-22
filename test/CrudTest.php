@@ -58,6 +58,20 @@ class CrudTest extends TestCase
     }
 
     /** @depends testInsert */
+    public function testCollectionSupportsByReferenceIteration(): void
+    {
+        $rows = static::$table->select([], ['sort' => ['id', 'asc']]);
+
+        foreach ($rows as &$row) {
+            $row['name'] = 'mutated-' . ((string) $row['id']);
+        }
+        unset($row);
+
+        $this->assertSame('mutated-1', $rows[0]['name']);
+        $this->assertSame('mutated-2', $rows[1]['name']);
+    }
+
+    /** @depends testInsert */
     public function testFields(): void
     {
         $data = static::$table->select([], ['fields' => ['id', 'f1', 'f2']]);
