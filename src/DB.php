@@ -6,6 +6,7 @@ namespace Objectiveweb;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Objectiveweb\DB\Expr;
 use Objectiveweb\DB\Exception\InvalidQueryException;
 use Objectiveweb\DB\Exception\TransactionException;
 use Objectiveweb\DB\Query;
@@ -379,14 +380,14 @@ class DB
         return [implode(' ' . $glue . ' ', $cond), $bindings];
     }
 
-    /** @param list<string>|string $fields */
+    /** @param list<string|Expr>|string $fields */
     private function compileFields(array|string $fields): array
     {
         $fields = is_array($fields) ? $fields : array_map('trim', explode(',', $fields));
         $compiled = [];
 
         foreach ($fields as $alias => $field) {
-            if (!is_string($field) || $field === '') {
+            if (!is_string($field) && !$field instanceof Expr) {
                 throw new InvalidQueryException('Invalid SELECT field');
             }
 
@@ -404,8 +405,16 @@ class DB
         return $compiled;
     }
 
-    private function compileFieldToken(string $field): string
+    private function compileFieldToken(string|Expr $field): string
     {
+        if ($field instanceof Expr) {
+            $sql = trim($field->toSql());
+            if ($sql === '') {
+                throw new InvalidQueryException('Invalid SELECT expression');
+            }
+            return $sql;
+        }
+
         $field = trim($field);
 
         if ($field === '*') {
@@ -421,6 +430,16 @@ class DB
             $function = strtoupper($matches[1]);
             $target = $matches[2] === '*' ? '*' : $this->quoteIdentifierPath($this->assertIdentifier($matches[2]));
             return sprintf('%s(%s)', $function, $target);
+        }
+
+        if (preg_match(
+            '/^GROUP_CONCAT\(\s*(DISTINCT\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*\)$/i',
+            $field,
+            $matches
+        ) === 1) {
+            $distinct = isset($matches[1]) && trim($matches[1]) !== '' ? 'DISTINCT ' : '';
+            $target = $this->quoteIdentifierPath($this->assertIdentifier($matches[2]));
+            return sprintf('GROUP_CONCAT(%s%s)', $distinct, $target);
         }
 
         if (preg_match(

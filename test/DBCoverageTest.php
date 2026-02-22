@@ -4,6 +4,7 @@ include dirname(__DIR__) . '/vendor/autoload.php';
 require_once __DIR__ . '/Support/DbTestBootstrap.php';
 
 use Objectiveweb\DB;
+use Objectiveweb\DB\Expr;
 use Objectiveweb\DB\Exception\InvalidQueryException;
 use Objectiveweb\DB\Exception\TransactionException;
 use PHPUnit\Framework\TestCase;
@@ -132,6 +133,28 @@ class DBCoverageTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertSame('ann', $rows[0]['name']);
         $this->assertSame('NY', $rows[0]['city']);
+    }
+
+    public function testSelectSupportsExprFieldWithAlias(): void
+    {
+        $rows = $this->db->select('users', ['name' => 'ann'], [
+            'fields' => [
+                'users.id',
+                'is_ann' => Expr::raw("CASE WHEN users.name = 'ann' THEN 1 ELSE 0 END"),
+            ],
+        ])->all();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('1', (string)$rows[0]['is_ann']);
+    }
+
+    public function testGroupSupportsMultipleFieldsAsStringAndArray(): void
+    {
+        $countFromString = $this->db->count('users', null, ['group' => 'group_name, is_active']);
+        $this->assertSame(3, $countFromString);
+
+        $countFromArray = $this->db->count('users', null, ['group' => ['group_name', 'is_active']]);
+        $this->assertSame(3, $countFromArray);
     }
 
     public function testDebugAndHelpers(): void
