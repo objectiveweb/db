@@ -279,10 +279,10 @@ class SQLBehaviorCoverageTest extends TestCase
     public function testInvalidGroupAndIdentifierRejection(): void
     {
         try {
-            $this->db->select('items', null, ['group' => ['kind']]);
+            $this->db->select('items', null, ['group' => ['kind', '']]);
             $this->fail('Expected InvalidQueryException for invalid group');
         } catch (InvalidQueryException $e) {
-            $this->assertStringContainsString('group expects a string field', $e->getMessage());
+            $this->assertStringContainsString('Invalid group value', $e->getMessage());
         }
 
         $this->expectException(InvalidQueryException::class);

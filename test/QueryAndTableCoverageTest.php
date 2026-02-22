@@ -91,4 +91,15 @@ class QueryAndTableCoverageTest extends TestCase
         $this->assertSame('x2', $data[0]['name']);
         $this->assertSame('x', $data[0]['kind']);
     }
+
+    public function testOrderSupportsIsNullExpression(): void
+    {
+        $this->table->insert(['name' => null, 'kind' => 'z']);
+
+        $rows = $this->db->select('things', null, [
+            'order' => ['name is null desc', 'id asc'],
+        ])->all();
+
+        $this->assertNull($rows[0]['name']);
+    }
 }

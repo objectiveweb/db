@@ -592,15 +592,31 @@ class DB
 
     private function compileGroup(mixed $group): string
     {
-        if (is_array($group)) {
-            throw new InvalidQueryException('group expects a string field');
-        }
+        if (is_string($group)) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $group)), fn (string $part): bool => $part !== ''));
+        } elseif (is_array($group)) {
+            $parts = [];
+            foreach ($group as $part) {
+                if (!is_string($part) || trim($part) === '') {
+                    throw new InvalidQueryException('Invalid group value');
+                }
 
-        if (!is_string($group) || trim($group) === '') {
+                $parts[] = trim($part);
+            }
+        } else {
             throw new InvalidQueryException('Invalid group value');
         }
 
-        return $this->quoteIdentifierPath($this->assertIdentifier(trim($group)));
+        if ($parts === []) {
+            throw new InvalidQueryException('Invalid group value');
+        }
+
+        $compiled = array_map(
+            fn (string $part): string => $this->quoteIdentifierPath($this->assertIdentifier($part)),
+            $parts
+        );
+
+        return implode(', ', $compiled);
     }
 
     private function compileOrder(mixed $order): string
@@ -665,14 +681,25 @@ class DB
 
     private function compileOrderPiece(string $piece): string
     {
-        if (preg_match('/^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)(?:\s+(ASC|DESC))?$/i', trim($piece), $matches) !== 1) {
+        $trimmed = trim($piece);
+
+        if (preg_match(
+            '/^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)(?:\s+IS\s+(NOT\s+)?NULL)?(?:\s+(ASC|DESC))?$/i',
+            $trimmed,
+            $matches
+        ) !== 1) {
             throw new InvalidQueryException('Invalid order expression');
         }
 
         $field = $this->quoteIdentifierPath($this->assertIdentifier($matches[1]));
-        $dir = isset($matches[2]) ? ' ' . strtoupper($matches[2]) : '';
+        $nullClause = '';
+        if (stripos($trimmed, ' IS ') !== false) {
+            $nullClause = isset($matches[2]) && trim((string) $matches[2]) !== '' ? ' IS NOT NULL' : ' IS NULL';
+        }
 
-        return $field . $dir;
+        $dir = isset($matches[3]) ? ' ' . strtoupper($matches[3]) : '';
+
+        return $field . $nullClause . $dir;
     }
 
     /** @return array{0:string,1:string} */
