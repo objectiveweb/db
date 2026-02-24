@@ -148,6 +148,39 @@ class DBCoverageTest extends TestCase
         $this->assertSame('1', (string)$rows[0]['is_ann']);
     }
 
+    public function testSelectSupportsForUpdateLock(): void
+    {
+        if (DbTestBootstrap::driver() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support FOR UPDATE.');
+        }
+
+        $query = $this->db->select('users', ['id' => 1], [
+            'fields' => ['users.id', 'users.name'],
+            'lock' => 'update',
+            'limit' => 1,
+        ]);
+
+        $row = $query->fetch();
+        $this->assertSame('ann', $row['name']);
+        $this->assertStringContainsString('FOR UPDATE', (string)$query->debugSql);
+    }
+
+    public function testSelectSupportsBooleanLockAlias(): void
+    {
+        if (DbTestBootstrap::driver() === 'sqlite') {
+            $this->markTestSkipped('SQLite does not support FOR UPDATE.');
+        }
+
+        $query = $this->db->select('users', ['id' => 1], [
+            'fields' => ['users.id'],
+            'lock' => true,
+            'limit' => 1,
+        ]);
+
+        $this->assertNotFalse($query->fetch());
+        $this->assertStringContainsString('FOR UPDATE', (string)$query->debugSql);
+    }
+
     public function testGroupSupportsMultipleFieldsAsStringAndArray(): void
     {
         $countFromString = $this->db->count('users', null, ['group' => 'group_name, is_active']);
@@ -190,6 +223,14 @@ class DBCoverageTest extends TestCase
     {
         $this->expectException(InvalidQueryException::class);
         $this->db->select('users', '1=1')->all();
+    }
+
+    public function testInvalidLockModeIsRejected(): void
+    {
+        $this->expectException(InvalidQueryException::class);
+        $this->db->select('users', null, [
+            'lock' => 'invalid_lock',
+        ])->all();
     }
 
     public function testUnsafeRawJoinIsRejected(): void

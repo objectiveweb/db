@@ -43,9 +43,9 @@ class DB
         }
 
         $query = new Query($this->connection, $sql);
+        $query->debugSql = $sql;
 
         if ($this->debug) {
-            $query->debugSql = $sql;
             error_log($sql);
         }
 
@@ -114,6 +114,7 @@ class DB
             'limit' => null,
             'offset' => 0,
             'join' => [],
+            'lock' => null,
         ];
 
         $params = array_merge($defaults, $params);
@@ -145,6 +146,8 @@ class DB
         if ($params['limit'] !== null) {
             $sql .= sprintf(' LIMIT %d OFFSET %d', (int) $params['limit'], (int) $params['offset']);
         }
+
+        $sql .= $this->compileLockClause($params['lock'] ?? null);
 
         $query = $this->query($sql);
         $query->exec(array_merge($joinBindings, $whereBindings));
@@ -636,6 +639,28 @@ class DB
         );
 
         return implode(', ', $compiled);
+    }
+
+    private function compileLockClause(mixed $lock): string
+    {
+        if ($lock === null || $lock === false || $lock === '') {
+            return '';
+        }
+
+        if ($lock === true) {
+            return ' FOR UPDATE';
+        }
+
+        if (!is_string($lock)) {
+            throw new InvalidQueryException('Invalid lock clause');
+        }
+
+        $normalized = strtolower(trim($lock));
+        return match ($normalized) {
+            'update', 'for update' => ' FOR UPDATE',
+            'share', 'for share' => ' FOR SHARE',
+            default => throw new InvalidQueryException('Unsupported lock mode'),
+        };
     }
 
     private function compileOrder(mixed $order): string

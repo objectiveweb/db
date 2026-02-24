@@ -257,6 +257,26 @@ Dialect note:
 - `RIGHT JOIN` is not supported by SQLite.
 - `FULL OUTER JOIN` is PostgreSQL-only in this project test matrix.
 
+## Row locking
+
+`select()` supports row-level locks via `params['lock']`.
+
+```php
+$row = $db->select('users', ['id' => 1], [
+    'lock' => 'update', // or true
+    'limit' => 1,
+])->fetch();
+```
+
+Supported values:
+- `true`, `'update'`, `'for update'` => `FOR UPDATE`
+- `'share'`, `'for share'` => `FOR SHARE`
+- `null`, `false`, `''` => no lock clause
+
+Notes:
+- SQLite does not support `FOR UPDATE`/`FOR SHARE`.
+- Invalid lock values throw `Objectiveweb\DB\Exception\InvalidQueryException`.
+
 ## Notes
 
 - Table and field identifiers are validated before SQL generation.
