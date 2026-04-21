@@ -224,7 +224,16 @@ class DB
 
         $affected = $this->query($sql)->exec($bindings);
 
-        return $affected === 0 ? null : (string) $this->connection->lastInsertId();
+        if ($affected === 0) {
+            return null;
+        }
+
+        try {
+            $id = $this->connection->lastInsertId();
+            return $id !== false && $id !== null && $id !== '' ? (string) $id : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

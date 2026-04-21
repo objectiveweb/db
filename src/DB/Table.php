@@ -136,7 +136,15 @@ class Table
     /** @param array<string,mixed>|Model $data */
     public function insert(array|Model $data): ?array
     {
-        $id = $this->db->insert((string) $this->table, $this->normalizeCreateData($data));
+        $payload = $this->normalizeCreateData($data);
+        $id = $this->db->insert((string) $this->table, $payload);
+
+        if (!$id) {
+            $pk = (string) $this->params['pk'];
+            if (array_key_exists($pk, $payload) && $payload[$pk] !== null && $payload[$pk] !== '') {
+                $id = (string) $payload[$pk];
+            }
+        }
 
         return $id ? [(string) $this->params['pk'] => $id] : null;
     }
