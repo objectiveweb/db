@@ -175,6 +175,86 @@ $table = $db->table(UserTable::class);
 $table->insert(['name' => 'Alice']);
 ```
 
+## Table inheritance
+
+`Table` can map one logical entity into two physical tables (base + child) using `extends`.
+
+```php
+$table = $db->table('things_ext', [
+    'pk' => 'id',
+    'extends' => [
+        'table' => 'things_base',
+        'fields' => ['common_name', 'common_kind'],
+        'key' => 'id',
+    ],
+]);
+```
+
+`extends` keys:
+- `table`: base table name
+- `fields`: fields that belong to the base table
+- `key`: base table key column used to link records (default: `id`)
+
+Join rule used by inheritance:
+- `child_table.pk = base_table.key`
+
+### Insert behavior
+
+On `insert()`, payload is split by `extends.fields`:
+- base fields are inserted into the base table
+- all other fields are inserted into the child table
+- both writes run in a single transaction and share the same primary key
+
+```php
+$table->insert([
+    'common_name' => 'shared',
+    'common_kind' => 'type-a',
+    'extra_value' => 'child-only',
+]);
+```
+
+### Update behavior
+
+On `update()`, payload is split the same way and updated in one transaction:
+- base fields update the base table
+- non-base fields update the child table
+
+```php
+// update by primary key
+$table->update(10, [
+    'common_kind' => 'type-b',
+    'extra_value' => 'updated-child',
+]);
+
+// update by child-table filter (matched ids are reused for base update)
+$table->update(['extra_value' => 'updated-child'], [
+    'common_name' => 'renamed',
+]);
+
+// update base-table field where child-table field matches
+$table->update(['extra_value' => 'pending'], [
+    'common_kind' => 'approved',
+]);
+
+// update child-table field where base-table field matches
+$table->update(['common_kind' => 'approved'], [
+    'extra_value' => 'done',
+]);
+```
+
+### Custom inheritance key
+
+```php
+$table = $db->table('child_table', [
+    'pk' => 'id',
+    'extends' => [
+        'table' => 'base_table',
+        'fields' => ['base_field'],
+        'key' => 'child_id', // join becomes child_table.id = base_table.child_id
+    ],
+]);
+```
+
 ## Filter grammar
 
 `where` arrays support:

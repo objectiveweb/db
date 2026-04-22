@@ -80,6 +80,38 @@ final class DbTestBootstrap
         ))->exec();
     }
 
+    public static function createInheritanceTables(DB $db): void
+    {
+        self::dropTable($db, 'things_ext');
+        self::dropTable($db, 'things_base');
+
+        $db->query(sprintf(
+            'CREATE TABLE things_base (%s, common_name VARCHAR(255), common_kind VARCHAR(255))',
+            self::idDefinition()
+        ))->exec();
+
+        $db->query(sprintf(
+            'CREATE TABLE things_ext (%s, extra_value VARCHAR(255))',
+            self::idDefinition()
+        ))->exec();
+    }
+
+    public static function createInheritanceTablesWithCustomBaseKey(DB $db): void
+    {
+        self::dropTable($db, 'things_ext_key');
+        self::dropTable($db, 'things_base_key');
+
+        $db->query(sprintf(
+            'CREATE TABLE things_base_key (%s, ext_id INTEGER, common_kind VARCHAR(255))',
+            self::idDefinition()
+        ))->exec();
+
+        $db->query(sprintf(
+            'CREATE TABLE things_ext_key (%s, extra_value VARCHAR(255))',
+            self::idDefinition()
+        ))->exec();
+    }
+
     public static function driver(): string
     {
         return (string) (getenv('TEST_DB_DRIVER') ?: 'sqlite');

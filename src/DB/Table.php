@@ -34,7 +34,22 @@ class Table
                 'group' => null,
                 'fields' => ['*'],
                 'model' => null,
+                'extends' => null,
             ], $params);
+        }
+
+        if (!is_array($this->params['join'])) {
+            throw new InvalidQueryException('Invalid join configuration');
+        }
+
+        if ($this->hasInheritance()) {
+            $baseTable = (string) $this->resolveInheritanceTable();
+            $pk = (string) $this->params['pk'];
+            $baseKey = $this->resolveInheritanceKey();
+            $baseJoinDef = [$baseTable => sprintf('%s.%s = %s.%s', (string) $this->table, $pk, $baseTable, $baseKey)];
+
+            // Preserve numeric join entries while allowing string-key legacy joins to be merged.
+            $this->params['join'] = array_merge($this->params['join'], $baseJoinDef);
         }
 
         if($this->params['model']) {
@@ -137,16 +152,88 @@ class Table
     public function insert(array|Model $data): ?array
     {
         $payload = $this->normalizeCreateData($data);
-        $id = $this->db->insert((string) $this->table, $payload);
+        if (!$this->hasInheritance()) {
+            $id = $this->db->insert((string) $this->table, $payload);
 
-        if (!$id) {
-            $pk = (string) $this->params['pk'];
-            if (array_key_exists($pk, $payload) && $payload[$pk] !== null && $payload[$pk] !== '') {
-                $id = (string) $payload[$pk];
+            if (!$id) {
+                $pk = (string) $this->params['pk'];
+                if (array_key_exists($pk, $payload) && $payload[$pk] !== null && $payload[$pk] !== '') {
+                    $id = (string) $payload[$pk];
+                }
             }
+
+            return $id ? [(string) $this->params['pk'] => $id] : null;
         }
 
-        return $id ? [(string) $this->params['pk'] => $id] : null;
+        $pk = (string) $this->params['pk'];
+        $baseTable = (string) $this->resolveInheritanceTable();
+        $baseKey = $this->resolveInheritanceKey();
+        [$basePayload, $mainPayload] = $this->splitPayloadByInheritance($payload);
+        $explicitId = null;
+
+        if (array_key_exists($pk, $payload) && $payload[$pk] !== null && $payload[$pk] !== '') {
+            $explicitId = (string) $payload[$pk];
+            $basePayload[$baseKey] = $payload[$pk];
+            $mainPayload[$pk] = $payload[$pk];
+        }
+
+        $id = $this->db->transaction(function (DB $db) use ($baseTable, $basePayload, $mainPayload, $explicitId, $pk, $baseKey): ?string {
+            if ($basePayload === [] && $mainPayload === []) {
+                throw new InvalidQueryException('Nothing to INSERT');
+            }
+
+            $baseInsert = $basePayload;
+            $mainInsert = $mainPayload;
+            $id = $explicitId;
+            $insertedBase = false;
+            $insertedMain = false;
+
+            if ($id !== null) {
+                $baseInsert[$baseKey] = $baseInsert[$baseKey] ?? $id;
+                $mainInsert[$pk] = $mainInsert[$pk] ?? $id;
+            }
+
+            if ($id === null && $baseInsert !== [] && ($baseKey === $pk || (array_key_exists($baseKey, $baseInsert) && $baseInsert[$baseKey] !== null && $baseInsert[$baseKey] !== ''))) {
+                $id = $db->insert($baseTable, $baseInsert);
+                $insertedBase = true;
+                if (($id === null || $id === '') && array_key_exists($baseKey, $baseInsert) && $baseInsert[$baseKey] !== null && $baseInsert[$baseKey] !== '') {
+                    $id = (string) $baseInsert[$baseKey];
+                }
+            }
+
+            if ($id === null && $mainInsert !== []) {
+                $id = $db->insert((string) $this->table, $mainInsert);
+                $insertedMain = true;
+                if (($id === null || $id === '') && array_key_exists($pk, $mainInsert) && $mainInsert[$pk] !== null && $mainInsert[$pk] !== '') {
+                    $id = (string) $mainInsert[$pk];
+                }
+            }
+
+            if ($id === null || $id === '') {
+                if (array_key_exists($baseKey, $baseInsert) && $baseInsert[$baseKey] !== null && $baseInsert[$baseKey] !== '') {
+                    $id = (string) $baseInsert[$baseKey];
+                } elseif (array_key_exists($pk, $mainInsert) && $mainInsert[$pk] !== null && $mainInsert[$pk] !== '') {
+                    $id = (string) $mainInsert[$pk];
+                } else {
+                    return null;
+                }
+            }
+
+            $baseInsert[$baseKey] = $baseInsert[$baseKey] ?? $id;
+            $mainInsert[$pk] = $mainInsert[$pk] ?? $id;
+
+            if (!$insertedBase && $baseInsert !== []) {
+                $db->insert($baseTable, $baseInsert);
+            }
+
+            if (!$insertedMain && $mainInsert !== []) {
+                $db->insert((string) $this->table, $mainInsert);
+            }
+
+            return (string) $id;
+        });
+
+        return $id ? [$pk => $id] : null;
     }
 
     /** @param int|string|array<string,mixed> $key @param array<string,mixed>|Model $data @return array<string,int> */
@@ -156,7 +243,50 @@ class Table
             $key = [(string) $this->params['pk'] => $key];
         }
 
-        return ['updated' => $this->db->update((string) $this->table, $this->normalizeUpdateData($data), $key)];
+        $payload = $this->normalizeUpdateData($data);
+
+        if (!$this->hasInheritance()) {
+            return ['updated' => $this->db->update((string) $this->table, $payload, $key)];
+        }
+
+        $pk = (string) $this->params['pk'];
+        $baseTable = (string) $this->resolveInheritanceTable();
+        $baseKey = $this->resolveInheritanceKey();
+        [$basePayload, $mainPayload] = $this->splitPayloadByInheritance($payload);
+        if ($basePayload === [] && $mainPayload === []) {
+            throw new InvalidQueryException('Nothing to UPDATE');
+        }
+
+        $updated = $this->db->transaction(function (DB $db) use ($pk, $baseKey, $key, $basePayload, $mainPayload, $baseTable): int {
+            $where = $this->qualifyInheritanceWhere($key);
+            $selectParams = $this->parseParams([
+                'fields' => ["{$this->table}.{$pk}"],
+            ]);
+            $ids = array_map(
+                fn (array $row): mixed => $row[$pk] ?? null,
+                $db->select((string) $this->table, $where, $selectParams)->all()
+            );
+            $ids = array_values(array_filter($ids, fn (mixed $id): bool => $id !== null && $id !== ''));
+
+            if ($ids === []) {
+                return 0;
+            }
+
+            $mainUpdated = 0;
+            $baseUpdated = 0;
+
+            if ($mainPayload !== []) {
+                $mainUpdated = $db->update((string) $this->table, $mainPayload, [$pk => $ids]);
+            }
+
+            if ($basePayload !== []) {
+                $baseUpdated = $db->update($baseTable, $basePayload, [$baseKey => $ids]);
+            }
+
+            return max($mainUpdated, $baseUpdated);
+        });
+
+        return ['updated' => $updated];
     }
 
     /** @param int|string|array<string,mixed> $key */
@@ -224,4 +354,146 @@ class Table
         return $modelClass::normalizeForUpdate($payload);
     }
 
+    private function hasInheritance(): bool
+    {
+        return $this->resolveInheritanceTable() !== null;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array{0:array<string,mixed>,1:array<string,mixed>}
+     */
+    private function splitPayloadByInheritance(array $payload): array
+    {
+        $baseFields = $this->resolveInheritanceFields();
+        if (!is_array($baseFields)) {
+            throw new InvalidQueryException('Invalid extends.fields configuration');
+        }
+
+        $baseLookup = [];
+        foreach ($baseFields as $field) {
+            if (!is_string($field) || trim($field) === '') {
+                throw new InvalidQueryException('Invalid extends.fields configuration');
+            }
+
+            $baseLookup[$field] = true;
+        }
+
+        $basePayload = [];
+        $mainPayload = [];
+
+        foreach ($payload as $field => $value) {
+            if (isset($baseLookup[(string) $field])) {
+                $basePayload[(string) $field] = $value;
+                continue;
+            }
+
+            $mainPayload[(string) $field] = $value;
+        }
+
+        return [$basePayload, $mainPayload];
+    }
+
+    private function resolveInheritanceTable(): ?string
+    {
+        $extends = $this->params['extends'] ?? null;
+        if ($extends === null) {
+            return null;
+        }
+
+        if (!is_array($extends)) {
+            throw new InvalidQueryException('Invalid extends configuration');
+        }
+
+        $table = $extends['table'] ?? null;
+        if (!is_string($table) || trim($table) === '') {
+            throw new InvalidQueryException('Invalid extends.table configuration');
+        }
+
+        return trim($table);
+    }
+
+    /** @return list<string> */
+    private function resolveInheritanceFields(): array
+    {
+        $extends = $this->params['extends'] ?? null;
+        if ($extends === null) {
+            return [];
+        }
+
+        if (!is_array($extends)) {
+            throw new InvalidQueryException('Invalid extends configuration');
+        }
+
+        $fields = $extends['fields'] ?? [];
+        if (!is_array($fields)) {
+            throw new InvalidQueryException('Invalid extends.fields configuration');
+        }
+
+        return $fields;
+    }
+
+    private function resolveInheritanceKey(): string
+    {
+        $extends = $this->params['extends'] ?? null;
+        if ($extends === null) {
+            return 'id';
+        }
+
+        if (!is_array($extends)) {
+            throw new InvalidQueryException('Invalid extends configuration');
+        }
+
+        $key = $extends['key'] ?? 'id';
+        if (!is_string($key) || trim($key) === '') {
+            throw new InvalidQueryException('Invalid extends.key configuration');
+        }
+
+        return trim($key);
+    }
+
+    /**
+     * @param array<string,mixed> $where
+     * @return array<string,mixed>
+     */
+    private function qualifyInheritanceWhere(array $where): array
+    {
+        if (!$this->hasInheritance()) {
+            return $where;
+        }
+
+        $baseTable = (string) $this->resolveInheritanceTable();
+        $mainTable = (string) $this->table;
+
+        $baseLookup = [];
+        foreach ($this->resolveInheritanceFields() as $field) {
+            $baseLookup[$field] = true;
+        }
+
+        $qualified = [];
+        foreach ($where as $key => $value) {
+            if (!is_string($key) || $key === '') {
+                throw new InvalidQueryException('Invalid WHERE key');
+            }
+
+            $not = '';
+            if ($key[0] === '!') {
+                $not = '!';
+                $key = substr($key, 1);
+                if ($key === '') {
+                    throw new InvalidQueryException('Invalid WHERE key');
+                }
+            }
+
+            if (str_contains($key, '.')) {
+                $qualified[$not . $key] = $value;
+                continue;
+            }
+
+            $table = isset($baseLookup[$key]) ? $baseTable : $mainTable;
+            $qualified[$not . $table . '.' . $key] = $value;
+        }
+
+        return $qualified;
+    }
 }
