@@ -80,6 +80,22 @@ final class DbTestBootstrap
         ))->exec();
     }
 
+    public static function createThingJoinTables(DB $db): void
+    {
+        self::dropTable($db, 'thing_labels');
+        self::dropTable($db, 'thing_notes');
+
+        $db->query(sprintf(
+            'CREATE TABLE thing_notes (%s, thing_id INTEGER, note VARCHAR(255))',
+            self::idDefinition()
+        ))->exec();
+
+        $db->query(sprintf(
+            'CREATE TABLE thing_labels (%s, thing_id INTEGER, label VARCHAR(255))',
+            self::idDefinition()
+        ))->exec();
+    }
+
     public static function createInheritanceTables(DB $db): void
     {
         self::dropTable($db, 'things_ext');

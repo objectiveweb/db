@@ -92,6 +92,27 @@ class QueryAndTableCoverageTest extends TestCase
         $this->assertSame('x', $data[0]['kind']);
     }
 
+    public function testPerCallJoinMergesWithTableDefaultJoin(): void
+    {
+        DbTestBootstrap::createThingJoinTables($this->db);
+
+        $this->db->insert('thing_notes', ['thing_id' => 1, 'note' => 'note-1']);
+        $this->db->insert('thing_labels', ['thing_id' => 1, 'label' => 'label-1']);
+
+        $table = $this->db->table('things', [
+            'join' => ['thing_notes n' => 'n.thing_id = things.id'],
+        ]);
+
+        $row = $table->get(1, [
+            'join' => ['left:thing_labels l' => 'l.thing_id = things.id'],
+            'fields' => ['things.id', 'n.note', 'l.label'],
+        ]);
+
+        $this->assertSame(1, (int) $row['id']);
+        $this->assertSame('note-1', $row['note']);
+        $this->assertSame('label-1', $row['label']);
+    }
+
     public function testOrderSupportsIsNullExpression(): void
     {
         $this->table->insert(['name' => null, 'kind' => 'z']);

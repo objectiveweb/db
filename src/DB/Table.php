@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Objectiveweb\DB;
 
+use Closure;
 use Objectiveweb\DB;
 use Objectiveweb\DB\Exception\InvalidQueryException;
 use Objectiveweb\DB\Exception\NotFoundException;
@@ -14,6 +15,7 @@ class Table
     protected DB $db;
     protected ?string $table = null;
     protected ?ReflectionClass $modelClass = null;
+    protected ?Closure $whereFieldResolver = null;
 
     /** @var array<string,mixed>|null */
     protected ?array $params = null;
@@ -50,6 +52,18 @@ class Table
 
             // Preserve numeric join entries while allowing string-key legacy joins to be merged.
             $this->params['join'] = array_merge($this->params['join'], $baseJoinDef);
+
+            $baseLookup = [];
+            foreach ($this->resolveInheritanceFields() as $field) {
+                if (!is_string($field) || trim($field) === '') {
+                    throw new InvalidQueryException('Invalid extends.fields configuration');
+                }
+
+                $baseLookup[$field] = true;
+            }
+
+            $mainTable = (string) $this->table;
+            $this->whereFieldResolver = static fn (string $field): string => (isset($baseLookup[$field]) ? $baseTable : $mainTable) . '.' . $field;
         }
 
         if($this->params['model']) {
@@ -90,8 +104,20 @@ class Table
             $queryParams['offset'] = 0;
         }
 
-        $queryParams['join'] = $params['join'] ?? $this->params['join'];
+        if(empty($params['join'])) {
+          $queryParams['join'] = $this->params['join'];
+        }
+        else {
+          if (!is_array($params['join'])) {
+            throw new InvalidQueryException('Invalid join configuration');
+          }
+
+          $queryParams['join'] = array_merge($this->params['join'], $params['join']);
+
+        }
+
         $queryParams['group'] = $params['group'] ?? $this->params['group'];
+        $queryParams['where_field_resolver'] = $this->whereFieldResolver;
 
         return $queryParams;
     }
@@ -116,6 +142,7 @@ class Table
         $countParams = [
             'join' => $queryParams['join'] ?? [],
             'group' => $queryParams['group'] ?? null,
+            'where_field_resolver' => $queryParams['where_field_resolver'] ?? null,
         ];
 
         $rowsCount = $this->db->count((string) $this->table, $where, $countParams);
@@ -258,13 +285,12 @@ class Table
         }
 
         $updated = $this->db->transaction(function (DB $db) use ($pk, $baseKey, $key, $basePayload, $mainPayload, $baseTable): int {
-            $where = $this->qualifyInheritanceWhere($key);
             $selectParams = $this->parseParams([
                 'fields' => ["{$this->table}.{$pk}"],
             ]);
             $ids = array_map(
                 fn (array $row): mixed => $row[$pk] ?? null,
-                $db->select((string) $this->table, $where, $selectParams)->all()
+                $db->select((string) $this->table, $key, $selectParams)->all()
             );
             $ids = array_values(array_filter($ids, fn (mixed $id): bool => $id !== null && $id !== ''));
 
@@ -452,48 +478,4 @@ class Table
         return trim($key);
     }
 
-    /**
-     * @param array<string,mixed> $where
-     * @return array<string,mixed>
-     */
-    private function qualifyInheritanceWhere(array $where): array
-    {
-        if (!$this->hasInheritance()) {
-            return $where;
-        }
-
-        $baseTable = (string) $this->resolveInheritanceTable();
-        $mainTable = (string) $this->table;
-
-        $baseLookup = [];
-        foreach ($this->resolveInheritanceFields() as $field) {
-            $baseLookup[$field] = true;
-        }
-
-        $qualified = [];
-        foreach ($where as $key => $value) {
-            if (!is_string($key) || $key === '') {
-                throw new InvalidQueryException('Invalid WHERE key');
-            }
-
-            $not = '';
-            if ($key[0] === '!') {
-                $not = '!';
-                $key = substr($key, 1);
-                if ($key === '') {
-                    throw new InvalidQueryException('Invalid WHERE key');
-                }
-            }
-
-            if (str_contains($key, '.')) {
-                $qualified[$not . $key] = $value;
-                continue;
-            }
-
-            $table = isset($baseLookup[$key]) ? $baseTable : $mainTable;
-            $qualified[$not . $table . '.' . $key] = $value;
-        }
-
-        return $qualified;
-    }
 }

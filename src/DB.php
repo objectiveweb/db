@@ -115,6 +115,7 @@ class DB
             'offset' => 0,
             'join' => [],
             'lock' => null,
+            'where_field_resolver' => null,
         ];
 
         $params = array_merge($defaults, $params);
@@ -124,7 +125,7 @@ class DB
 
         $fields = $this->compileFields($params['fields']);
         [$joinSql, $joinBindings] = $this->compileJoin((array) $params['join'], $tableAlias);
-        [$whereSql, $whereBindings] = $this->buildWhereClause($where);
+        [$whereSql, $whereBindings] = $this->buildWhereClause($where, 'AND', $params['where_field_resolver']);
 
         $sql = sprintf(
             'SELECT %s FROM %s %s%s%s',
@@ -164,13 +165,14 @@ class DB
         $params = array_merge([
             'join' => [],
             'group' => null,
+            'where_field_resolver' => null,
         ], $params);
 
         $tableAlias = $this->assertIdentifier($table);
         $tableName = $this->prefix . $tableAlias;
 
         [$joinSql, $joinBindings] = $this->compileJoin((array) $params['join'], $tableAlias);
-        [$whereSql, $whereBindings] = $this->buildWhereClause($where);
+        [$whereSql, $whereBindings] = $this->buildWhereClause($where, 'AND', $params['where_field_resolver']);
 
         $base = sprintf(
             ' FROM %s %s%s%s',
@@ -327,9 +329,10 @@ class DB
 
     /**
      * @param array<string,mixed>|string|null $args
+     * @param callable(string):string|null $resolveField
      * @return array{0:string,1:array<string,mixed>}
      */
-    private function buildWhereClause(array|string|null $args = null, string $glue = 'AND'): array
+    private function buildWhereClause(array|string|null $args = null, string $glue = 'AND', ?callable $resolveField = null): array
     {
         if ($args === null || $args === '') {
             return ['', []];
@@ -351,6 +354,16 @@ class DB
             if ($key[0] === '!') {
                 $not = true;
                 $key = substr($key, 1);
+                if ($key === '') {
+                    throw new InvalidQueryException('Invalid WHERE key');
+                }
+            }
+
+            if ($resolveField !== null && !str_contains($key, '.')) {
+                $key = $resolveField($key);
+                if ($key === '') {
+                    throw new InvalidQueryException('Invalid WHERE key');
+                }
             }
 
             $field = $this->quoteIdentifierPath($this->assertIdentifier($key));
