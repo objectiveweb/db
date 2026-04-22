@@ -153,6 +153,43 @@ class TableInheritanceTest extends TestCase
         $this->assertSame('pending', $rows[0]['extra_value']);
     }
 
+    public function testDeleteRemovesBaseAndMainRows(): void
+    {
+        $id = (int) $this->table->insert([
+            'common_name' => 'delete-one',
+            'common_kind' => 'delete-kind',
+            'extra_value' => 'delete-extra',
+        ])['id'];
+
+        $deleted = $this->table->delete($id);
+
+        $this->assertSame(1, $deleted);
+        $this->assertFalse($this->db->select('things_ext', ['id' => $id])->fetch());
+        $this->assertFalse($this->db->select('things_base', ['id' => $id])->fetch());
+    }
+
+    public function testDeleteByInheritedFilterRemovesMatchingRows(): void
+    {
+        $this->table->insert([
+            'common_name' => 'delete-approved',
+            'common_kind' => 'approved',
+            'extra_value' => 'keep-or-delete',
+        ]);
+        $this->table->insert([
+            'common_name' => 'delete-draft',
+            'common_kind' => 'draft',
+            'extra_value' => 'keep-or-delete',
+        ]);
+
+        $deleted = $this->table->delete(['common_kind' => 'approved']);
+
+        $this->assertSame(1, $deleted);
+        $this->assertCount(1, $this->db->select('things_ext')->all());
+        $remainingBase = $this->db->select('things_base')->all();
+        $this->assertCount(1, $remainingBase);
+        $this->assertSame('delete-draft', $remainingBase[0]['common_name']);
+    }
+
     public function testUpdateSplitsPayloadAcrossBaseAndMainTables(): void
     {
         $id = (int) $this->table->insert([
@@ -294,7 +331,7 @@ class TableInheritanceTest extends TestCase
         $this->assertCount(1, $done);
     }
 
-    public function testCustomExtendsKeyIsUsedForJoinAndUpdates(): void
+    public function testCustomExtendsKeyIsUsedForJoinUpdatesAndDeletes(): void
     {
         DbTestBootstrap::createInheritanceTablesWithCustomBaseKey($this->db);
         $table = $this->db->table('things_ext_key', [
@@ -323,5 +360,10 @@ class TableInheritanceTest extends TestCase
         $main = $this->db->select('things_ext_key', ['id' => $id])->fetch();
         $this->assertNotFalse($main);
         $this->assertSame('done', $main['extra_value']);
+
+        $deleted = $table->delete($id);
+        $this->assertSame(1, $deleted);
+        $this->assertFalse($this->db->select('things_ext_key', ['id' => $id])->fetch());
+        $this->assertFalse($this->db->select('things_base_key', ['ext_id' => $id])->fetch());
     }
 }

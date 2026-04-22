@@ -285,15 +285,7 @@ class Table
         }
 
         $updated = $this->db->transaction(function (DB $db) use ($pk, $baseKey, $key, $basePayload, $mainPayload, $baseTable): int {
-            $selectParams = $this->parseParams([
-                'fields' => ["{$this->table}.{$pk}"],
-            ]);
-            $ids = array_map(
-                fn (array $row): mixed => $row[$pk] ?? null,
-                $db->select((string) $this->table, $key, $selectParams)->all()
-            );
-            $ids = array_values(array_filter($ids, fn (mixed $id): bool => $id !== null && $id !== ''));
-
+            $ids = $this->resolveMatchingPrimaryKeys($db, $key, $pk);
             if ($ids === []) {
                 return 0;
             }
@@ -322,7 +314,42 @@ class Table
             $key = [(string) $this->params['pk'] => $key];
         }
 
-        return $this->db->delete((string) $this->table, $key);
+        if (!$this->hasInheritance()) {
+            return $this->db->delete((string) $this->table, $key);
+        }
+
+        $pk = (string) $this->params['pk'];
+        $baseTable = (string) $this->resolveInheritanceTable();
+        $baseKey = $this->resolveInheritanceKey();
+
+        return $this->db->transaction(function (DB $db) use ($key, $pk, $baseTable, $baseKey): int {
+            $ids = $this->resolveMatchingPrimaryKeys($db, $key, $pk);
+            if ($ids === []) {
+                return 0;
+            }
+
+            $mainDeleted = $db->delete((string) $this->table, [$pk => $ids]);
+            $baseDeleted = $db->delete($baseTable, [$baseKey => $ids]);
+
+            return max($mainDeleted, $baseDeleted);
+        });
+    }
+
+    /**
+     * @param array<string,mixed> $where
+     * @return list<mixed>
+     */
+    private function resolveMatchingPrimaryKeys(DB $db, array $where, string $pk): array
+    {
+        $selectParams = $this->parseParams([
+            'fields' => ["{$this->table}.{$pk}"],
+        ]);
+        $ids = array_map(
+            fn (array $row): mixed => $row[$pk] ?? null,
+            $db->select((string) $this->table, $where, $selectParams)->all()
+        );
+
+        return array_values(array_filter($ids, fn (mixed $id): bool => $id !== null && $id !== ''));
     }
 
     public function findBy(string $key, mixed $value): Collection
