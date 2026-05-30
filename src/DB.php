@@ -6,6 +6,7 @@ namespace Objectiveweb;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Exception\ConnectionLost;
 use Objectiveweb\DB\Expr;
 use Objectiveweb\DB\Exception\InvalidQueryException;
 use Objectiveweb\DB\Exception\TransactionException;
@@ -21,6 +22,9 @@ class DB
 
     private string $prefix;
 
+    /** @var array<string,mixed> */
+    private array $connectionParams;
+
     public function __construct(string|array $dsn, ?string $username = null, string $password = '', array $options = [])
     {
 
@@ -28,12 +32,32 @@ class DB
         unset($options['prefix']);
 
         if (is_array($dsn)) {
-            $params = self::fromParsedUrl($dsn, $username, $password, $options);
+            $this->connectionParams = self::fromParsedUrl($dsn, $username, $password, $options);
         } else {
-            $params = self::fromDsnString($dsn, $username, $password, $options);
+            $this->connectionParams = self::fromDsnString($dsn, $username, $password, $options);
         }
 
-        $this->connection = DriverManager::getConnection($params);
+        $this->connection = DriverManager::getConnection($this->connectionParams);
+    }
+
+    public function reconnect(): void
+    {
+        $this->connection->close();
+        $this->connection = DriverManager::getConnection($this->connectionParams);
+    }
+
+    public function ensureConnection(): void
+    {
+        try {
+            $this->connection->executeQuery('SELECT 1');
+        } catch (\Throwable $e) {
+            if (!$this->isConnectionLost($e)) {
+                throw $e;
+            }
+
+            $this->reconnect();
+            $this->connection->executeQuery('SELECT 1');
+        }
     }
 
     public function query(string $sql, mixed ...$args): Query
@@ -325,6 +349,23 @@ class DB
     public static function now(): string
     {
         return date('Y-m-d H:i:s');
+    }
+
+    public function isConnectionLost(\Throwable $e): bool
+    {
+        if ($e instanceof ConnectionLost) {
+            return true;
+        }
+
+        if ($e instanceof TransactionException && $e->getPrevious() !== null) {
+            return $this->isConnectionLost($e->getPrevious());
+        }
+
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'server has gone away')
+            || str_contains($message, 'lost connection')
+            || str_contains($message, '2006');
     }
 
     /**
