@@ -1,0 +1,369 @@
+<?php
+
+declare(strict_types=1);
+
+include dirname(__DIR__) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/DbTestBootstrap.php';
+
+use Objectiveweb\DB;
+use Objectiveweb\DB\Table;
+use PHPUnit\Framework\TestCase;
+
+class TableInheritanceTest extends TestCase
+{
+    private DB $db;
+    private Table $table;
+
+    protected function setUp(): void
+    {
+        $this->db = DbTestBootstrap::connect();
+        DbTestBootstrap::createInheritanceTables($this->db);
+
+        $this->table = $this->db->table('things_ext', [
+            'extends' => [
+                'table' => 'things_base',
+                'fields' => ['common_name', 'common_kind'],
+                'key' => 'id',
+            ],
+        ]);
+    }
+
+    public function testInsertSplitsPayloadAcrossBaseAndMainTables(): void
+    {
+        $inserted = $this->table->insert([
+            'common_name' => 'base-1',
+            'common_kind' => 'kind-a',
+            'extra_value' => 'extra-1',
+        ]);
+
+        $this->assertNotNull($inserted);
+        $id = (int) $inserted['id'];
+
+        $base = $this->db->select('things_base', ['id' => $id])->fetch();
+        $main = $this->db->select('things_ext', ['id' => $id])->fetch();
+
+        $this->assertNotFalse($base);
+        $this->assertNotFalse($main);
+        $this->assertSame('base-1', $base['common_name']);
+        $this->assertSame('kind-a', $base['common_kind']);
+        $this->assertSame('extra-1', $main['extra_value']);
+    }
+
+    public function testSelectIncludesBaseJoinByDefault(): void
+    {
+        $inserted = $this->table->insert([
+            'common_name' => 'base-join',
+            'common_kind' => 'kind-join',
+            'extra_value' => 'extra-join',
+        ]);
+
+        $id = (int) $inserted['id'];
+
+        $row = $this->table->get($id, [
+            'fields' => [
+                'things_ext.id',
+                'things_base.common_name',
+                'things_ext.extra_value',
+            ],
+        ]);
+
+        $this->assertSame('base-join', $row['common_name']);
+        $this->assertSame('extra-join', $row['extra_value']);
+    }
+
+    public function testSelectAndFindByQualifyInheritedPrimaryKeyFilters(): void
+    {
+        $id = (int) $this->table->insert([
+            'common_name' => 'filter-base',
+            'common_kind' => 'filter-kind',
+            'extra_value' => 'filter-extra',
+        ])['id'];
+
+        $selected = $this->table->select(['id' => $id], [
+            'fields' => [
+                'things_ext.id',
+                'things_base.common_name',
+                'things_ext.extra_value',
+            ],
+        ]);
+
+        $this->assertCount(1, $selected);
+        $this->assertSame($id, (int) $selected[0]['id']);
+        $this->assertSame('filter-base', $selected[0]['common_name']);
+
+        $found = $this->table->findBy('id', $id);
+
+        $this->assertCount(1, $found);
+        $this->assertSame($id, (int) $found[0]['id']);
+        $this->assertSame('filter-extra', $found[0]['extra_value']);
+    }
+
+    public function testPerCallJoinIsMergedWithInheritanceJoin(): void
+    {
+        $id = (int) $this->table->insert([
+            'common_name' => 'merged-base',
+            'common_kind' => 'merged-kind',
+            'extra_value' => 'merged-extra',
+        ])['id'];
+
+        $row = $this->table->get($id, [
+            'join' => [
+                'left:things_base tb2' => 'tb2.id = things_ext.id',
+            ],
+            'fields' => [
+                'things_ext.id',
+                'things_base.common_name',
+                'tb2.common_kind',
+            ],
+        ]);
+
+        $this->assertSame($id, (int) $row['id']);
+        $this->assertSame('merged-base', $row['common_name']);
+        $this->assertSame('merged-kind', $row['common_kind']);
+    }
+
+    public function testNegatedInheritedFiltersAreQualifiedForBaseAndMainFields(): void
+    {
+        $this->table->insert([
+            'common_name' => 'neg-1',
+            'common_kind' => 'approved',
+            'extra_value' => 'done',
+        ]);
+        $this->table->insert([
+            'common_name' => 'neg-2',
+            'common_kind' => 'draft',
+            'extra_value' => 'pending',
+        ]);
+
+        $rows = $this->table->select([
+            '!common_kind' => 'approved',
+            '!extra_value' => 'done',
+        ], [
+            'fields' => [
+                'things_ext.id',
+                'things_base.common_name',
+                'things_base.common_kind',
+                'things_ext.extra_value',
+            ],
+        ]);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('neg-2', $rows[0]['common_name']);
+        $this->assertSame('draft', $rows[0]['common_kind']);
+        $this->assertSame('pending', $rows[0]['extra_value']);
+    }
+
+    public function testDeleteRemovesBaseAndMainRows(): void
+    {
+        $id = (int) $this->table->insert([
+            'common_name' => 'delete-one',
+            'common_kind' => 'delete-kind',
+            'extra_value' => 'delete-extra',
+        ])['id'];
+
+        $deleted = $this->table->delete($id);
+
+        $this->assertSame(1, $deleted);
+        $this->assertFalse($this->db->select('things_ext', ['id' => $id])->fetch());
+        $this->assertFalse($this->db->select('things_base', ['id' => $id])->fetch());
+    }
+
+    public function testDeleteByInheritedFilterRemovesMatchingRows(): void
+    {
+        $this->table->insert([
+            'common_name' => 'delete-approved',
+            'common_kind' => 'approved',
+            'extra_value' => 'keep-or-delete',
+        ]);
+        $this->table->insert([
+            'common_name' => 'delete-draft',
+            'common_kind' => 'draft',
+            'extra_value' => 'keep-or-delete',
+        ]);
+
+        $deleted = $this->table->delete(['common_kind' => 'approved']);
+
+        $this->assertSame(1, $deleted);
+        $this->assertCount(1, $this->db->select('things_ext')->all());
+        $remainingBase = $this->db->select('things_base')->all();
+        $this->assertCount(1, $remainingBase);
+        $this->assertSame('delete-draft', $remainingBase[0]['common_name']);
+    }
+
+    public function testUpdateSplitsPayloadAcrossBaseAndMainTables(): void
+    {
+        $id = (int) $this->table->insert([
+            'common_name' => 'before',
+            'common_kind' => 'kind-before',
+            'extra_value' => 'extra-before',
+        ])['id'];
+
+        $updated = $this->table->update($id, [
+            'common_name' => 'after',
+            'extra_value' => 'extra-after',
+        ]);
+
+        $this->assertSame(1, $updated['updated']);
+
+        $base = $this->db->select('things_base', ['id' => $id])->fetch();
+        $main = $this->db->select('things_ext', ['id' => $id])->fetch();
+
+        $this->assertSame('after', $base['common_name']);
+        $this->assertSame('extra-after', $main['extra_value']);
+    }
+
+    public function testUpdateByMainTableFilterAlsoUpdatesBaseTable(): void
+    {
+        $this->table->insert([
+            'common_name' => 'batch-1',
+            'common_kind' => 'kind-batch',
+            'extra_value' => 'batch-target',
+        ]);
+        $this->table->insert([
+            'common_name' => 'batch-2',
+            'common_kind' => 'kind-batch',
+            'extra_value' => 'batch-target',
+        ]);
+
+        $updated = $this->table->update(['extra_value' => 'batch-target'], [
+            'common_kind' => 'kind-updated',
+        ]);
+
+        $this->assertSame(2, $updated['updated']);
+
+        $rows = $this->db->select('things_base', ['common_kind' => 'kind-updated'])->all();
+        $this->assertCount(2, $rows);
+    }
+
+    public function testUpdateWithBaseTableFilterUpdatesMainTable(): void
+    {
+        $this->table->insert([
+            'common_name' => 'approved-1',
+            'common_kind' => 'approved',
+            'extra_value' => 'pending',
+        ]);
+        $this->table->insert([
+            'common_name' => 'pending-1',
+            'common_kind' => 'pending',
+            'extra_value' => 'pending',
+        ]);
+
+        $updated = $this->table->update(['common_kind' => 'approved'], [
+            'extra_value' => 'done',
+        ]);
+
+        $this->assertSame(1, $updated['updated']);
+
+        $rowsDone = $this->db->select('things_ext', ['extra_value' => 'done'])->all();
+        $this->assertCount(1, $rowsDone);
+    }
+
+    public function testUpdateWithMixedBaseAndMainFilters(): void
+    {
+        $this->table->insert([
+            'common_name' => 'mix-1',
+            'common_kind' => 'approved',
+            'extra_value' => 'not-updated',
+        ]);
+        $this->table->insert([
+            'common_name' => 'mix-2',
+            'common_kind' => 'approved',
+            'extra_value' => 'updated',
+        ]);
+
+        $updated = $this->table->update([
+            'common_kind' => 'approved',
+            'extra_value' => 'not-updated',
+        ], [
+            'extra_value' => 'updated',
+        ]);
+
+        $this->assertSame(1, $updated['updated']);
+
+        $rows = $this->db->select('things_ext', ['extra_value' => 'updated'])->all();
+        $this->assertCount(2, $rows);
+    }
+
+    public function testUpdateBaseFieldWhereMainFieldMatches(): void
+    {
+        $this->table->insert([
+            'common_name' => 'base-from-main-1',
+            'common_kind' => 'draft',
+            'extra_value' => 'x',
+        ]);
+        $this->table->insert([
+            'common_name' => 'base-from-main-2',
+            'common_kind' => 'draft',
+            'extra_value' => 'y',
+        ]);
+
+        $updated = $this->table->update(['extra_value' => 'x'], [
+            'common_kind' => 'approved',
+        ]);
+
+        $this->assertSame(1, $updated['updated']);
+
+        $approved = $this->db->select('things_base', ['common_kind' => 'approved'])->all();
+        $this->assertCount(1, $approved);
+        $this->assertSame('base-from-main-1', $approved[0]['common_name']);
+    }
+
+    public function testUpdateMainFieldWhereBaseFieldMatches(): void
+    {
+        $this->table->insert([
+            'common_name' => 'main-from-base-1',
+            'common_kind' => 'approved',
+            'extra_value' => 'pending',
+        ]);
+        $this->table->insert([
+            'common_name' => 'main-from-base-2',
+            'common_kind' => 'draft',
+            'extra_value' => 'pending',
+        ]);
+
+        $updated = $this->table->update(['common_kind' => 'approved'], [
+            'extra_value' => 'done',
+        ]);
+
+        $this->assertSame(1, $updated['updated']);
+
+        $done = $this->db->select('things_ext', ['extra_value' => 'done'])->all();
+        $this->assertCount(1, $done);
+    }
+
+    public function testCustomExtendsKeyIsUsedForJoinUpdatesAndDeletes(): void
+    {
+        DbTestBootstrap::createInheritanceTablesWithCustomBaseKey($this->db);
+        $table = $this->db->table('things_ext_key', [
+            'extends' => [
+                'table' => 'things_base_key',
+                'fields' => ['common_kind'],
+                'key' => 'ext_id',
+            ],
+        ]);
+
+        $inserted = $table->insert([
+            'common_kind' => 'approved',
+            'extra_value' => 'pending',
+        ]);
+        $id = (int) $inserted['id'];
+
+        $base = $this->db->select('things_base_key', ['ext_id' => $id])->fetch();
+        $this->assertNotFalse($base);
+        $this->assertSame('approved', $base['common_kind']);
+
+        $updated = $table->update(['common_kind' => 'approved'], [
+            'extra_value' => 'done',
+        ]);
+        $this->assertSame(1, $updated['updated']);
+
+        $main = $this->db->select('things_ext_key', ['id' => $id])->fetch();
+        $this->assertNotFalse($main);
+        $this->assertSame('done', $main['extra_value']);
+
+        $deleted = $table->delete($id);
+        $this->assertSame(1, $deleted);
+        $this->assertFalse($this->db->select('things_ext_key', ['id' => $id])->fetch());
+        $this->assertFalse($this->db->select('things_base_key', ['ext_id' => $id])->fetch());
+    }
+}

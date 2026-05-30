@@ -1,418 +1,936 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Objectiveweb;
 
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Exception\ConnectionLost;
+use Objectiveweb\DB\Expr;
+use Objectiveweb\DB\Exception\InvalidQueryException;
+use Objectiveweb\DB\Exception\TransactionException;
 use Objectiveweb\DB\Query;
-use PDO;
-
+use Objectiveweb\DB\Table;
 
 class DB
 {
-    /** @var \PDO */
-    public $pdo;
+    private Connection $connection;
+    private bool $debug = false;
 
-    private $debug = false;
+    public ?string $error = null;
 
-    public $error = null;
+    private string $prefix;
 
-    private $prefix = null;
+    /** @var array<string,mixed> */
+    private array $connectionParams;
 
-    function __construct(\PDO $pdo, $prefix = null)
-    {
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $this->pdo = $pdo;
-        $this->prefix = $prefix;
-    }
-
-    /**
-     * Creates a new DB instance
-     *
-     * @param string $dsn driver:dbname=name;host=127.0.0.1;charset=utf8
-     *
-     *  The Data Source Name, or DSN, contains the information required to connect to the database.
-     *
-     *    In general, a DSN consists of the PDO driver name, followed by a colon, followed by the PDO driver-specific connection syntax. Further information is available from the PDO driver-specific documentation.
-     *
-     *    The dsn parameter supports three different methods of specifying the arguments required to create a database connection:
-     *
-     *    Driver invocation
-     *    dsn contains the full DSN.
-     *
-     *    URI invocation
-     *    dsn consists of uri: followed by a URI that defines the location of a file containing the DSN string. The URI can specify a local file or a remote URL.
-     *
-     *    uri:file:///path/to/dsnfile
-     *
-     *    Aliasing
-     *    dsn consists of a name name that maps to pdo.dsn.name in php.ini defining the DSN string.
-     *
-     * @param string $username
-     *  The user name for the DSN string. This parameter is optional for some PDO drivers.
-     *
-     * @param string $password
-     *  The password for the DSN string. This parameter is optional for some PDO drivers.
-     *
-     * @param array $options
-     *  PDO key=>value array of driver-specific connection options.
-     *
-     * @return \Objectiveweb\DB
-     */
-    public static function connect($dsn, $username = null, $password = '', $options = array())
+    public function __construct(string|array $dsn, ?string $username = null, string $password = '', array $options = [])
     {
 
-        // parse dsn if necessary
-        if (is_array($dsn)) {
-            $username = $dsn['user'];
-            $password = @$dsn['pass'];
-            $dsn = sprintf("%s:dbname=%s;host=%s;charset=utf8",
-                $dsn['scheme'],
-                isset($dsn['dbname']) ? $dsn['dbname'] : substr($dsn['path'], 1),
-                $dsn['host']);
-        }
-
-        $prefix = @$options['prefix'];
+        $this->prefix = isset($options['prefix']) ? (string) $options['prefix'] : '';
         unset($options['prefix']);
 
-        return new DB(new PDO($dsn, $username, $password, $options), $prefix);
-
-    }
-
-    function query($sql)
-    {
-        if (func_num_args() > 1) {
-            $sql = call_user_func_array('sprintf', func_get_args());
+        if (is_array($dsn)) {
+            $this->connectionParams = self::fromParsedUrl($dsn, $username, $password, $options);
+        } else {
+            $this->connectionParams = self::fromDsnString($dsn, $username, $password, $options);
         }
 
-        $stmt = $this->pdo->prepare($sql);
+        $this->connection = DriverManager::getConnection($this->connectionParams);
+    }
 
-        $query = new Query($stmt);
+    public function reconnect(): void
+    {
+        $this->connection->close();
+        $this->connection = DriverManager::getConnection($this->connectionParams);
+    }
+
+    public function ensureConnection(): void
+    {
+        try {
+            $this->connection->executeQuery('SELECT 1');
+        } catch (\Throwable $e) {
+            if (!$this->isConnectionLost($e)) {
+                throw $e;
+            }
+
+            $this->reconnect();
+            $this->connection->executeQuery('SELECT 1');
+        }
+    }
+
+    public function query(string $sql, mixed ...$args): Query
+    {
+        if ($args !== []) {
+            $sql = sprintf($sql, ...$args);
+        }
+
+        $query = new Query($this->connection, $sql);
+        $query->debugSql = $sql;
 
         if ($this->debug) {
-            $query->sql = $sql;
+            error_log($sql);
         }
 
         return $query;
     }
 
-    /* Transactions ------------------------------------------------ */
-
-    function beginTransaction()
+    public function beginTransaction(): bool
     {
-        return $this->pdo->beginTransaction();
+        try {
+            $this->connection->beginTransaction();
+            return true;
+        } catch (\Throwable $e) {
+            throw new TransactionException('Cannot begin transaction', 500, $e);
+        }
     }
 
-    function rollBack()
+    public function rollBack(): bool
     {
-        return $this->pdo->rollBack();
+        try {
+            $this->connection->rollBack();
+            return true;
+        } catch (\Throwable $e) {
+            throw new TransactionException('Cannot rollback transaction', 500, $e);
+        }
     }
 
-    /**
-     * Returns TRUE on success or FALSE on failure.
-     */
-    function commit()
+    public function commit(): bool
     {
-        return $this->pdo->commit();
+        try {
+            $this->connection->commit();
+            return true;
+        } catch (\Throwable $e) {
+            throw new TransactionException('Cannot commit transaction', 500, $e);
+        }
     }
 
-    function transaction($callable)
+    public function transaction(callable $callable): mixed
     {
         $this->beginTransaction();
 
         try {
-            $ret = call_user_func($callable, $this);
+            $ret = $callable($this);
 
-            if(!$this->commit()) {
-                throw new \Exception('Cannot commit transaction', 500);
-            }
-
+            $this->commit();
             return $ret;
-        } catch (\Exception $ex) {
-            $this->rollBack();
+        } catch (\Throwable $ex) {
+            try {
+                $this->rollBack();
+            } catch (TransactionException $rollbackError) {
+                throw new TransactionException('Transaction rollback failed after error', 500, $rollbackError);
+            }
             throw $ex;
         }
     }
 
-    /* sql helpers  ------------------------------------------------ */
-
     /**
-     * Performs a SELECT Query
-     * @param $table
-     * @param $where array [ field => value ] or string
-     * @param array $params [ key => value ]
-     *  fields => comma-separated string or array.
-     *   Non-numeric keys are used as field names, for example
-     *   $fields = array( 'id', 'name', 'total' => 'COUNT(*)' );
-     *  group => null
-     *  order => null
-     *  limit => null
-     *  offset => 0
-     *  join => array(
-     *    'table' => 'table.id = other.id', // table -> condition syntax
-     *    'othertable t on t.id = table.id' // raw string syntax
-     *  )
-     *
-     * @return \Objectiveweb\DB\Query
-     * @throws \Exception
+     * @param array<string,mixed>|string|null $where
+     * @param array<string,mixed> $params
      */
-    function select($table, $where = null, $params = array())
+    public function select(string $table, array|string|null $where = null, array $params = []): Query
     {
-
-        $defaults = array(
-            'fields' => '*',
-            'group' => NULL,
-            'order' => NULL,
-            'limit' => NULL,
+        $defaults = [
+            'fields' => ['*'],
+            'group' => null,
+            'order' => null,
+            'limit' => null,
             'offset' => 0,
-            'join' => ''
-        );
+            'join' => [],
+            'lock' => null,
+            'where_field_resolver' => null,
+        ];
 
         $params = array_merge($defaults, $params);
 
-        /**
-         * JOIN
-         */
-        if (is_array($params['join'])) {
-            $join = '';
-            foreach ($params['join'] as $k => $v) {
-                if (is_numeric($k)) {
-                    $join .= " $v";
-                } else {
-                    if ($k[0] == '*') {
-                        $join .= ' left';
-                        $k = ltrim($k, '*');
-                    } else {
-                        $join .= ' inner';
-                    }
-                    $join .= " join {$this->prefix}{$k} {$k} on {$v}";
-                }
-            }
-        } else {
-            $join = $params['join'];
-        }
+        $tableAlias = $this->assertIdentifier($table);
+        $tableName = $this->prefix . $tableAlias;
 
-        /**
-         * FIELDS
-         */
-        if (!is_array($params['fields'])) {
-            $params['fields'] = explode(",", $params['fields']);
-        }
+        $fields = $this->compileFields($params['fields']);
+        [$joinSql, $joinBindings] = $this->compileJoin((array) $params['join'], $tableAlias);
+        [$whereSql, $whereBindings] = $this->buildWhereClause($where, 'AND', $params['where_field_resolver']);
 
-        $fields = array();
+        $sql = sprintf(
+            'SELECT %s FROM %s %s%s%s',
+            implode(', ', $fields),
+            $this->quoteIdentifier($tableName),
+            $this->quoteIdentifier($tableAlias),
+            $joinSql !== '' ? ' ' . $joinSql : '',
+            $whereSql !== '' ? ' WHERE ' . $whereSql : ''
+        );
 
-        foreach ($params['fields'] as $k => $v) {
-
-            // Allow * and functions
-            if (preg_match('/(\*|[A-Z]+\([^\)]+\)|[a-z]+\([^\)]+\)|SQL_CALC_FOUND_ROWS.*)/', $v)) {
-                $r = str_replace('`', '``', $v);
-            } else {
-                $r = "`" . implode('`.`', explode(".", str_replace('`', '``', $v))) . "`";
-            }
-
-            if (!is_numeric($k)) {
-                $r .= sprintf(" as `%s`", str_replace('`', '``', $k));
-            }
-
-            //$fields[] = $r;
-            $params['fields'][$k] = $r;
-        }
-
-        list($where, $bindings) = $this->_where($where);
-
-        $sql = sprintf(/** @lang text */
-            "SELECT %s FROM `%s` %s %s %s",
-            implode(", ", $params['fields']),
-            $this->prefix . $table,
-            $table,
-            $join,
-            !empty($where) ? 'WHERE ' . $where : '');
-
-        if ($params['group']) {
-            if (is_array($params['group'])) {
-                throw new \Exception('not implemented');
-            } else {
-                $sql .= sprintf(' GROUP BY %s', $params['group']);
-            }
+        if (!empty($params['group'])) {
+            $sql .= ' GROUP BY ' . $this->compileGroup($params['group']);
         }
 
         if (!empty($params['order'])) {
-            if (is_array($params['order'])) {
-                $params['order'] = implode(' ', $params['order']);
-            }
-            $sql .= sprintf(' ORDER BY %s', $params['order']);
+            $sql .= ' ORDER BY ' . $this->compileOrder($params['order']);
         }
 
-        if ($params['limit']) {
-            $sql .= sprintf(' LIMIT %d,%d', $params['offset'], $params['limit']);
+        if ($params['limit'] !== null) {
+            $sql .= sprintf(' LIMIT %d OFFSET %d', (int) $params['limit'], (int) $params['offset']);
         }
+
+        $sql .= $this->compileLockClause($params['lock'] ?? null);
 
         $query = $this->query($sql);
-
-        $query->exec($bindings);
+        $query->exec(array_merge($joinBindings, $whereBindings));
 
         return $query;
     }
 
     /**
-     * Inserts $data into $table
-     *
-     * @param $table
-     * @param $data array [ field => value, ... ]
-     * @return $id int Last Insert ID or NULL if no rows where changed
+     * @param array<string,mixed>|string|null $where
+     * @param array<string,mixed> $params
      */
-    function insert($table, $data)
+    public function count(string $table, array|string|null $where = null, array $params = []): int
     {
+        $params = array_merge([
+            'join' => [],
+            'group' => null,
+            'where_field_resolver' => null,
+        ], $params);
 
-        $fields = array_keys($data);
+        $tableAlias = $this->assertIdentifier($table);
+        $tableName = $this->prefix . $tableAlias;
 
-        $sql = "INSERT INTO " . $this->prefix . $table . " (" . implode(", ", $fields) . ") VALUES (:" . implode(", :", $fields) . ");";
+        [$joinSql, $joinBindings] = $this->compileJoin((array) $params['join'], $tableAlias);
+        [$whereSql, $whereBindings] = $this->buildWhereClause($where, 'AND', $params['where_field_resolver']);
 
-        $query = $this->query($sql);
-        foreach ($fields as $field) {
-            $query->bind($field, $data[$field]);
+        $base = sprintf(
+            ' FROM %s %s%s%s',
+            $this->quoteIdentifier($tableName),
+            $this->quoteIdentifier($tableAlias),
+            $joinSql !== '' ? ' ' . $joinSql : '',
+            $whereSql !== '' ? ' WHERE ' . $whereSql : ''
+        );
+
+        $bindings = array_merge($joinBindings, $whereBindings);
+
+        if (!empty($params['group'])) {
+            $groupSql = $this->compileGroup($params['group']);
+            $sql = 'SELECT COUNT(*) AS count FROM (SELECT 1' . $base . ' GROUP BY ' . $groupSql . ') ow_count';
+        } else {
+            $sql = 'SELECT COUNT(*) AS count' . $base;
         }
 
-        $rows = $query->exec();
+        $result = $this->query($sql);
+        $result->exec($bindings);
+        $countRow = $result->fetch();
 
-        return ($rows === 0) ? NULL : $this->pdo->lastInsertId();
+        return isset($countRow['count']) ? (int) $countRow['count'] : 0;
     }
 
+    /** @param array<string,mixed> $data */
+    public function insert(string $table, array $data): ?string
+    {
+        if ($data === []) {
+            throw new InvalidQueryException('Nothing to INSERT');
+        }
+
+        $tableName = $this->prefix . $this->assertIdentifier($table);
+        $columns = [];
+        $placeholders = [];
+        $bindings = [];
+
+        foreach ($data as $field => $value) {
+            $column = $this->assertIdentifier((string) $field);
+            $columns[] = $this->quoteIdentifier($column);
+            $placeholders[] = ':' . $column;
+            $bindings[$column] = is_bool($value) ? (int) $value : $value;
+        }
+
+        $sql = sprintf(
+            'INSERT INTO %s (%s) VALUES (%s)',
+            $this->quoteIdentifier($tableName),
+            implode(', ', $columns),
+            implode(', ', $placeholders)
+        );
+
+        $affected = $this->query($sql)->exec($bindings);
+
+        if ($affected === 0) {
+            return null;
+        }
+
+        try {
+            $id = $this->connection->lastInsertId();
+            return $id !== false && $id !== null && $id !== '' ? (string) $id : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 
     /**
-     * UPDATE
-     *
-     * @param String $table Table name
-     * @param array $data Data to update
-     * @param mixed $where conditions
-     * @return int number of updated rows
-     * @throws \Exception
+     * @param array<string,mixed> $data
+     * @param array<string,mixed>|string|null $where
      */
-    function update($table, $data, $where = null)
+    public function update(string $table, array $data, array|string|null $where = null, ?int $limit = null): int
     {
+        if ($data === []) {
+            throw new InvalidQueryException('Nothing to UPDATE');
+        }
 
-        $changes = array();
+        [$whereSql, $whereBindings] = $this->buildWhereClause($where);
+        if ($whereSql === '') {
+            throw new InvalidQueryException('Unsafe UPDATE without WHERE clause');
+        }
 
-        list($where, $bindings) = $this->_where($where);
+        $tableName = $this->prefix . $this->assertIdentifier($table);
+        $changes = [];
+        $bindings = $whereBindings;
 
         foreach ($data as $key => $value) {
-            $changes[] = "$key = :update_$key";
-            $bindings[":update_$key"] = $value;
+            $field = $this->assertIdentifier((string) $key);
+            $placeholder = 'update_' . $field;
+            $changes[] = sprintf('%s = :%s', $this->quoteIdentifier($field), $placeholder);
+            $bindings[$placeholder] = is_bool($value) ? (int) $value : $value;
         }
 
-        if (empty($changes)) {
-            throw new \Exception("Nothing to UPDATE");
-        }
+        $sql = sprintf(
+            'UPDATE %s SET %s WHERE %s%s',
+            $this->quoteIdentifier($tableName),
+            implode(', ', $changes),
+            $whereSql,
+            $limit !== null ? sprintf(' LIMIT %d', $limit) : ''
+        );
 
-        $sql = sprintf(/** @lang text */
-            "UPDATE `%s` SET %s WHERE %s",
-            $this->prefix . $table,
-            implode(", ", $changes),
-            $where);
-
-        $query = $this->query($sql);
-
-        return $query->exec($bindings);
+        return $this->query($sql)->exec($bindings);
     }
 
-    /**
-     * Performs a DELETE query, returns number of affected rows
-     *
-     * @param string $table table name
-     * @param mixed $where condition
-     * @return int Number of affected rows
-     * @throws \Exception
-     */
-    function delete($table, $where)
+    /** @param array<string,mixed>|string|null $where */
+    public function delete(string $table, array|string|null $where): int
     {
-
-        list($where, $bindings) = $this->_where($where);
-
-        $sql = sprintf(/** @lang text */
-            "DELETE FROM `%s` WHERE %s", $this->prefix . $table, $where);
-
-        $query = $this->query($sql);
-
-        return $query->exec($bindings);
-    }
-
-    private function _where($args = null, $glue = "AND")
-    {
-
-        $bindings = null;
-
-        if ($args && is_array($args)) {
-            $cond = array();
-            $bindings = array();
-            $me = $this;
-
-            // TODO suportar _and, _or
-            foreach ($args as $key => $value) {
-
-                // TODO if is_numeric($key)
-                $table = str_replace('`', '``', $key);
-                $table = implode('`.`', explode(".", $table));
-                $key = crc32($key);
-
-                if (is_array($value)) {
-                    // TODO quote array values
-                    $cond[] = sprintf("`%s` IN (%s)", $table, implode(",", array_map(array($this, 'escape'), $value)));
-                } else {
-                    $cond[] = sprintf("`%s` %s :where_%s",
-                        $table,
-                        is_null($value) ? 'is' : (strpos($value, '%') !== FALSE ? 'LIKE' : '='),
-                        $key);
-                    $bindings[":where_$key"] = $value;
-                }
-            }
-
-            $args = implode(" $glue ", $cond);
+        [$whereSql, $whereBindings] = $this->buildWhereClause($where);
+        if ($whereSql === '') {
+            throw new InvalidQueryException('Unsafe DELETE without WHERE clause');
         }
 
-        return array($args, $bindings);
+        $tableName = $this->prefix . $this->assertIdentifier($table);
+
+        $sql = sprintf(
+            'DELETE FROM %s WHERE %s',
+            $this->quoteIdentifier($tableName),
+            $whereSql
+        );
+
+        return $this->query($sql)->exec($whereBindings);
     }
 
-    /** DB Functions */
-
-    /**
-     * Ativa debugging no db (grava queries, etc)
-     * @param bool|true $status
-     */
-    function debug($status = array())
+    public function debug(bool $status = true): void
     {
         $this->debug = $status;
     }
 
-    /**
-     * Returns a DB\Table helper for this table
-     * @param $table String the table name
-     * @param array $params Optional Primary Key, defaults to 'id'
-     * @return DB\Table
-     */
-    function table($table, array $params = ['pk' => 'id'])
+    /** @param array<string,mixed> $params */
+    public function table(string $table, array $params = ['pk' => 'id']): Table
     {
-        if (class_exists($table) && is_subclass_of($table, 'Objectiveweb\DB\Table')) {
-
+        if (class_exists($table) && is_subclass_of($table, Table::class)) {
             return new $table($this);
-        } else {
-            return new DB\Table($this, $table, $params);
         }
+
+        return new Table($this, $table, $params);
     }
 
-    function escape($string)
+    /**
+     * @param array<string,mixed> $array
+     * @param list<string>|string $validKeys
+     * @param array<string,mixed> $defaults
+     * @return array<string,mixed>
+     */
+    public static function array_cleanup(array $array, array|string $validKeys = [], array $defaults = []): array
     {
-        return $this->pdo->quote($string);
+        $keys = is_array($validKeys) ? $validKeys : [$validKeys];
+        $cleanArray = array_intersect_key($array, array_flip($keys));
+        return array_merge($defaults, $cleanArray);
     }
 
-    public static function array_cleanup(array $array, array $valid_keys = [], $defaults = [])
-    {
-        if (!is_array($valid_keys)) {
-            $valid_keys = array($valid_keys);
-        }
-        $clean_array = array_intersect_key($array, array_flip($valid_keys));
-        return array_merge($defaults, $clean_array);
-    }
-
-    public static function now()
+    public static function now(): string
     {
         return date('Y-m-d H:i:s');
+    }
+
+    public function isConnectionLost(\Throwable $e): bool
+    {
+        if ($e instanceof ConnectionLost) {
+            return true;
+        }
+
+        if ($e instanceof TransactionException && $e->getPrevious() !== null) {
+            return $this->isConnectionLost($e->getPrevious());
+        }
+
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'server has gone away')
+            || str_contains($message, 'lost connection')
+            || str_contains($message, '2006');
+    }
+
+    /**
+     * @param array<string,mixed>|string|null $args
+     * @param callable(string):string|null $resolveField
+     * @return array{0:string,1:array<string,mixed>}
+     */
+    private function buildWhereClause(array|string|null $args = null, string $glue = 'AND', ?callable $resolveField = null): array
+    {
+        if ($args === null || $args === '') {
+            return ['', []];
+        }
+
+        if (is_string($args)) {
+            throw new InvalidQueryException('Raw WHERE string is disabled. Use array conditions.');
+        }
+
+        $cond = [];
+        $bindings = [];
+
+        foreach ($args as $key => $value) {
+            if (!is_string($key) || $key === '') {
+                throw new InvalidQueryException('Invalid WHERE key');
+            }
+
+            $not = false;
+            if ($key[0] === '!') {
+                $not = true;
+                $key = substr($key, 1);
+                if ($key === '') {
+                    throw new InvalidQueryException('Invalid WHERE key');
+                }
+            }
+
+            if ($resolveField !== null && !str_contains($key, '.')) {
+                $key = $resolveField($key);
+                if ($key === '') {
+                    throw new InvalidQueryException('Invalid WHERE key');
+                }
+            }
+
+            $field = $this->quoteIdentifierPath($this->assertIdentifier($key));
+            $baseName = 'where_' . preg_replace('/[^A-Za-z0-9_]/', '_', $key) . '_' . count($bindings);
+
+            if (is_array($value)) {
+                if ($value === []) {
+                    $cond[] = $not ? '1=1' : '1=0';
+                    continue;
+                }
+
+                $list = [];
+                foreach (array_values($value) as $i => $item) {
+                    $name = $baseName . '_' . $i;
+                    $list[] = ':' . $name;
+                    $bindings[$name] = is_bool($item) ? (int) $item : $item;
+                }
+
+                $cond[] = sprintf('%s %sIN (%s)', $field, $not ? 'NOT ' : '', implode(', ', $list));
+                continue;
+            }
+
+            if ($value === null) {
+                $cond[] = sprintf('%s IS %sNULL', $field, $not ? 'NOT ' : '');
+                continue;
+            }
+
+            $operator = '=';
+            if (is_string($value) && strpos($value, '%') !== false) {
+                $operator = $not ? 'NOT LIKE' : 'LIKE';
+            } elseif ($not) {
+                $operator = '<>';
+            }
+
+            $cond[] = sprintf('%s %s :%s', $field, $operator, $baseName);
+            $bindings[$baseName] = is_bool($value) ? (int) $value : $value;
+        }
+
+        return [implode(' ' . $glue . ' ', $cond), $bindings];
+    }
+
+    /** @param list<string|Expr>|string $fields */
+    private function compileFields(array|string $fields): array
+    {
+        $fields = is_array($fields) ? $fields : array_map('trim', explode(',', $fields));
+        $compiled = [];
+
+        foreach ($fields as $alias => $field) {
+            if (!is_string($field) && !$field instanceof Expr) {
+                throw new InvalidQueryException('Invalid SELECT field');
+            }
+
+            $rendered = $this->compileFieldToken($field);
+            if (!is_int($alias)) {
+                $rendered .= ' AS ' . $this->quoteSingleIdentifier($this->assertIdentifier((string) $alias));
+            }
+            $compiled[] = $rendered;
+        }
+
+        if ($compiled === []) {
+            throw new InvalidQueryException('At least one field is required');
+        }
+
+        return $compiled;
+    }
+
+    private function compileFieldToken(string|Expr $field): string
+    {
+        if ($field instanceof Expr) {
+            $sql = trim($field->toSql());
+            if ($sql === '') {
+                throw new InvalidQueryException('Invalid SELECT expression');
+            }
+            return $sql;
+        }
+
+        $field = trim($field);
+
+        if ($field === '*') {
+            return '*';
+        }
+
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*\.\*$/', $field) === 1) {
+            [$table] = explode('.', $field, 2);
+            return $this->quoteIdentifier($table) . '.*';
+        }
+
+        if (preg_match('/^(COUNT|SUM|AVG|MIN|MAX)\((\*|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\)$/i', $field, $matches) === 1) {
+            $function = strtoupper($matches[1]);
+            $target = $matches[2] === '*' ? '*' : $this->quoteIdentifierPath($this->assertIdentifier($matches[2]));
+            return sprintf('%s(%s)', $function, $target);
+        }
+
+        if (preg_match(
+            '/^GROUP_CONCAT\(\s*(DISTINCT\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*\)$/i',
+            $field,
+            $matches
+        ) === 1) {
+            $distinct = isset($matches[1]) && trim($matches[1]) !== '' ? 'DISTINCT ' : '';
+            $target = $this->quoteIdentifierPath($this->assertIdentifier($matches[2]));
+            return sprintf('GROUP_CONCAT(%s%s)', $distinct, $target);
+        }
+
+        if (preg_match(
+            '/^COUNT\(\s*CASE\s+WHEN\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s+IS\s+(NOT\s+)?NULL\s+THEN\s+(-?\d+)(?:\s+ELSE\s+(-?\d+))?\s+END\s*\)$/i',
+            $field,
+            $matches
+        ) === 1) {
+            $target = $this->quoteIdentifierPath($this->assertIdentifier($matches[1]));
+            $not = isset($matches[2]) && trim($matches[2]) !== '' ? 'NOT ' : '';
+            $thenValue = $matches[3];
+            $elseClause = isset($matches[4]) && $matches[4] !== '' ? ' ELSE ' . $matches[4] : '';
+
+            return sprintf(
+                'COUNT(CASE WHEN %s IS %sNULL THEN %s%s END)',
+                $target,
+                $not,
+                $thenValue,
+                $elseClause
+            );
+        }
+
+        if (preg_match('/^COALESCE\((.+)\)$/i', $field, $matches) === 1) {
+            $arguments = array_map('trim', explode(',', $matches[1]));
+            if (count($arguments) < 2) {
+                throw new InvalidQueryException('COALESCE expects at least two identifiers');
+            }
+
+            $quoted = [];
+            foreach ($arguments as $argument) {
+                if ($argument === '') {
+                    throw new InvalidQueryException('COALESCE expects valid identifier arguments');
+                }
+                $quoted[] = $this->quoteIdentifierPath($this->assertIdentifier($argument));
+            }
+
+            return sprintf('COALESCE(%s)', implode(', ', $quoted));
+        }
+
+        return $this->quoteIdentifierPath($this->assertIdentifier($field));
+    }
+
+    /**
+     * Join formats:
+     * - Legacy map: ['left:table alias' => 'alias.id = base.ref'].
+     *   Supported prefixes: inner:, left:, right:, full:, cross:
+     *   If no prefix is provided, plain JOIN is used (database default join behavior).
+     * - Structured list:
+     *   [
+     *     ['type' => 'left', 'table' => 'people', 'alias' => 'p', 'on' => 'p.id = t.person_id'],
+     *     ['type' => 'cross', 'table' => 'calendar', 'alias' => 'c'],
+     *   ]
+     *
+     * @param array<int|string,mixed> $join
+     * @return array{0:string,1:array<string,mixed>}
+     */
+    private function compileJoin(array $join, string $baseAlias): array
+    {
+        if ($join === []) {
+            return ['', []];
+        }
+
+        $parts = [];
+
+        foreach ($join as $key => $value) {
+            if (is_int($key)) {
+                if (!is_array($value)) {
+                    throw new InvalidQueryException('Raw JOIN strings are disabled. Use structured join arrays.');
+                }
+
+                $parts[] = $this->compileStructuredJoin($value);
+                continue;
+            }
+
+            [$joinType, $tableDef] = $this->extractLegacyJoinType((string) $key);
+            [$table, $alias] = $this->parseTableAlias(trim($tableDef));
+            $condition = trim((string) $value);
+            if ($condition === '' && $joinType !== 'CROSS JOIN') {
+                throw new InvalidQueryException('Join condition cannot be empty');
+            }
+
+            $parts[] = $this->renderJoinClause($joinType, $table, $alias, $condition);
+        }
+
+        unset($baseAlias);
+        return [implode(' ', $parts), []];
+    }
+
+    /** @param array<string,mixed> $join */
+    private function compileStructuredJoin(array $join): string
+    {
+        if (!isset($join['table']) || !is_string($join['table']) || trim($join['table']) === '') {
+            throw new InvalidQueryException('Structured join requires a non-empty table');
+        }
+
+        $joinType = $this->normalizeJoinType($join['type'] ?? 'inner');
+        $table = $this->assertIdentifier(trim($join['table']));
+        $alias = isset($join['alias']) && is_string($join['alias']) && $join['alias'] !== ''
+            ? $this->assertIdentifier(trim($join['alias']))
+            : $table;
+
+        $condition = isset($join['on']) ? trim((string) $join['on']) : '';
+        if ($joinType !== 'CROSS JOIN' && $condition === '') {
+            throw new InvalidQueryException('Join condition cannot be empty');
+        }
+
+        return $this->renderJoinClause($joinType, $table, $alias, $condition);
+    }
+
+    /** @return array{0:string,1:string} */
+    private function extractLegacyJoinType(string $tableDef): array
+    {
+        $tableDef = trim($tableDef);
+        if ($tableDef === '') {
+            throw new InvalidQueryException('Invalid table definition');
+        }
+
+        if (!str_contains($tableDef, ':')) {
+            return ['JOIN', $tableDef];
+        }
+
+        [$type, $remainder] = explode(':', $tableDef, 2);
+        $type = strtolower(trim($type));
+        $remainder = trim($remainder);
+
+        if ($remainder === '') {
+            throw new InvalidQueryException('Invalid table definition');
+        }
+
+        if (!in_array($type, ['inner', 'left', 'right', 'full', 'cross'], true)) {
+            return ['JOIN', $tableDef];
+        }
+
+        return [$this->normalizeJoinType($type), $remainder];
+    }
+
+    private function normalizeJoinType(mixed $type): string
+    {
+        if (!is_string($type) || trim($type) === '') {
+            throw new InvalidQueryException('Invalid join type');
+        }
+
+        $normalized = strtolower(trim($type));
+        return match ($normalized) {
+            'inner', 'inner join' => 'INNER JOIN',
+            'join' => 'JOIN',
+            'left', 'left join', 'left outer', 'left outer join' => 'LEFT JOIN',
+            'right', 'right join', 'right outer', 'right outer join' => 'RIGHT JOIN',
+            'full', 'full join', 'full outer', 'full outer join' => 'FULL OUTER JOIN',
+            'cross', 'cross join' => 'CROSS JOIN',
+            default => throw new InvalidQueryException('Unsupported join type'),
+        };
+    }
+
+    private function renderJoinClause(string $joinType, string $table, string $alias, string $condition): string
+    {
+        $base = sprintf(
+            '%s %s %s',
+            $joinType,
+            $this->quoteIdentifier($this->prefix . $table),
+            $this->quoteIdentifier($alias)
+        );
+
+        if ($joinType === 'CROSS JOIN') {
+            return $base;
+        }
+
+        return $base . ' ON ' . $condition;
+    }
+
+    private function compileGroup(mixed $group): string
+    {
+        if (is_string($group)) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $group)), fn (string $part): bool => $part !== ''));
+        } elseif (is_array($group)) {
+            $parts = [];
+            foreach ($group as $part) {
+                if (!is_string($part) || trim($part) === '') {
+                    throw new InvalidQueryException('Invalid group value');
+                }
+
+                $parts[] = trim($part);
+            }
+        } else {
+            throw new InvalidQueryException('Invalid group value');
+        }
+
+        if ($parts === []) {
+            throw new InvalidQueryException('Invalid group value');
+        }
+
+        $compiled = array_map(
+            fn (string $part): string => $this->quoteIdentifierPath($this->assertIdentifier($part)),
+            $parts
+        );
+
+        return implode(', ', $compiled);
+    }
+
+    private function compileLockClause(mixed $lock): string
+    {
+        if ($lock === null || $lock === false || $lock === '') {
+            return '';
+        }
+
+        if ($lock === true) {
+            return ' FOR UPDATE';
+        }
+
+        if (!is_string($lock)) {
+            throw new InvalidQueryException('Invalid lock clause');
+        }
+
+        $normalized = strtolower(trim($lock));
+        return match ($normalized) {
+            'update', 'for update' => ' FOR UPDATE',
+            'share', 'for share' => ' FOR SHARE',
+            default => throw new InvalidQueryException('Unsupported lock mode'),
+        };
+    }
+
+    private function compileOrder(mixed $order): string
+    {
+        if (is_string($order)) {
+            $pieces = array_map('trim', explode(',', $order));
+            $rendered = [];
+            foreach ($pieces as $piece) {
+                if ($piece === '') {
+                    continue;
+                }
+                $rendered[] = $this->compileOrderPiece($piece);
+            }
+
+            if ($rendered === []) {
+                throw new InvalidQueryException('Invalid order clause');
+            }
+
+            return implode(', ', $rendered);
+        }
+
+        if (is_array($order)) {
+            if ($order === []) {
+                throw new InvalidQueryException('Invalid order clause');
+            }
+
+            if (
+                count($order) === 2
+                && isset($order[0], $order[1])
+                && is_string($order[0])
+                && is_string($order[1])
+                && in_array(strtoupper(trim($order[1])), ['ASC', 'DESC'], true)
+            ) {
+                return $this->compileOrderPiece($order[0] . ' ' . $order[1]);
+            }
+
+            $rendered = [];
+            foreach ($order as $piece) {
+                if (is_array($piece)) {
+                    if (
+                        !isset($piece[0])
+                        || !is_string($piece[0])
+                        || (isset($piece[1]) && !is_string($piece[1]))
+                    ) {
+                        throw new InvalidQueryException('Invalid order clause');
+                    }
+
+                    $rendered[] = $this->compileOrderPiece(
+                        isset($piece[1]) ? $piece[0] . ' ' . $piece[1] : $piece[0]
+                    );
+                    continue;
+                }
+
+                $rendered[] = $this->compileOrderPiece((string) $piece);
+            }
+
+            return implode(', ', $rendered);
+        }
+
+        throw new InvalidQueryException('Invalid order clause');
+    }
+
+    private function compileOrderPiece(string $piece): string
+    {
+        $trimmed = trim($piece);
+
+        if (preg_match(
+            '/^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)(?:\s+IS\s+(NOT\s+)?NULL)?(?:\s+(ASC|DESC))?$/i',
+            $trimmed,
+            $matches
+        ) !== 1) {
+            throw new InvalidQueryException('Invalid order expression');
+        }
+
+        $field = $this->quoteIdentifierPath($this->assertIdentifier($matches[1]));
+        $nullClause = '';
+        if (stripos($trimmed, ' IS ') !== false) {
+            $nullClause = isset($matches[2]) && trim((string) $matches[2]) !== '' ? ' IS NOT NULL' : ' IS NULL';
+        }
+
+        $dir = isset($matches[3]) ? ' ' . strtoupper($matches[3]) : '';
+
+        return $field . $nullClause . $dir;
+    }
+
+    /** @return array{0:string,1:string} */
+    private function parseTableAlias(string $tableDef): array
+    {
+        $parts = preg_split('/\s+/', trim($tableDef));
+        if (!is_array($parts) || $parts === []) {
+            throw new InvalidQueryException('Invalid table definition');
+        }
+
+        $table = $this->assertIdentifier($parts[0]);
+        $alias = isset($parts[1]) ? $this->assertIdentifier($parts[1]) : $table;
+
+        return [$table, $alias];
+    }
+
+    private function assertIdentifier(string $identifier): string
+    {
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$/', $identifier) !== 1) {
+            throw new InvalidQueryException("Invalid identifier: {$identifier}");
+        }
+
+        return $identifier;
+    }
+
+    private function quoteIdentifierPath(string $identifier): string
+    {
+        $segments = explode('.', $identifier);
+        $segments = array_map(fn (string $segment): string => $this->quoteIdentifier($segment), $segments);
+        return implode('.', $segments);
+    }
+
+    private function quoteIdentifier(string $identifier): string
+    {
+        return $this->connection->quoteIdentifier($identifier);
+    }
+
+    private function quoteSingleIdentifier(string $identifier): string
+    {
+        return $this->connection->quoteSingleIdentifier($identifier);
+    }
+
+    /**
+     * @param array<string,mixed> $dsn
+     * @param array<string,mixed> $options
+     * @return array<string,mixed>
+     */
+    private static function fromParsedUrl(array $dsn, ?string $username, string $password, array $options): array
+    {
+        $scheme = (string) ($dsn['scheme'] ?? 'mysql');
+        $dbName = isset($dsn['dbname']) ? (string) $dsn['dbname'] : ltrim((string) ($dsn['path'] ?? ''), '/');
+
+        $params = [
+            'driver' => self::mapDriver($scheme),
+            'host' => $dsn['host'] ?? '127.0.0.1',
+            'dbname' => $dbName,
+            'user' => $dsn['user'] ?? $username,
+            'password' => $dsn['pass'] ?? $password,
+        ];
+
+        if (isset($dsn['port'])) {
+            $params['port'] = (int) $dsn['port'];
+        }
+
+        return array_merge($params, $options);
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     * @return array<string,mixed>
+     */
+    private static function fromDsnString(string $dsn, ?string $username, string $password, array $options): array
+    {
+        if (strpos($dsn, ':') === false) {
+            throw new InvalidQueryException('Invalid DSN format');
+        }
+
+        [$scheme, $rest] = explode(':', $dsn, 2);
+
+        if ($scheme === 'sqlite') {
+            $path = trim($rest);
+            if (str_starts_with($path, 'dbname=')) {
+                $path = substr($path, strlen('dbname='));
+            }
+
+            $params = [
+                'driver' => 'pdo_sqlite',
+                'path' => $path,
+                'user' => $username,
+                'password' => $password,
+            ];
+
+            return array_merge($params, $options);
+        }
+
+        $pairs = [];
+        foreach (explode(';', $rest) as $chunk) {
+            if ($chunk === '' || strpos($chunk, '=') === false) {
+                continue;
+            }
+            [$key, $value] = explode('=', $chunk, 2);
+            $pairs[trim($key)] = trim($value);
+        }
+
+        $params = [
+            'driver' => self::mapDriver($scheme),
+            'host' => $pairs['host'] ?? '127.0.0.1',
+            'dbname' => $pairs['dbname'] ?? '',
+            'charset' => $pairs['charset'] ?? 'utf8',
+            'user' => $username,
+            'password' => $password,
+        ];
+
+        return array_merge($params, $options);
+    }
+
+    private static function mapDriver(string $scheme): string
+    {
+        return match ($scheme) {
+            'mysql' => 'pdo_mysql',
+            'pgsql' => 'pdo_pgsql',
+            'sqlite' => 'pdo_sqlite',
+            'sqlsrv' => 'pdo_sqlsrv',
+            default => throw new InvalidQueryException("Unsupported driver scheme: {$scheme}"),
+        };
     }
 }

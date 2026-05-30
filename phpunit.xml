@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="vendor/autoload.php" colors="true" cacheResult="false">
+    <testsuites>
+        <testsuite name="all">
+            <directory>test</directory>
+        </testsuite>
+
+        <testsuite name="sqlite">
+            <directory>test</directory>
+            <exclude>test/MySQLCompatibilityTest.php</exclude>
+            <exclude>test/PgSQLCompatibilityTest.php</exclude>
+        </testsuite>
+
+        <testsuite name="mysql">
+            <directory>test</directory>
+            <exclude>test/PgSQLCompatibilityTest.php</exclude>
+        </testsuite>
+
+        <testsuite name="pgsql">
+            <directory>test</directory>
+            <exclude>test/MySQLCompatibilityTest.php</exclude>
+        </testsuite>
+    </testsuites>
+</phpunit>

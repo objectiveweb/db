@@ -1,110 +1,121 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Objectiveweb\DB;
 
-use PDO;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Result;
+use Objectiveweb\DB\Exception\InvalidQueryException;
 
-class Query {
+class Query
+{
+    private Connection $connection;
+    private string $sql;
 
-    /** @var \PDOStatement $stmt */
-    var $stmt;
-    var $sql = null;
+    /** @var array<string,mixed> */
+    private array $bindings = [];
 
-    function __construct($stmt) {
-        $this->error = null;
-        $this->stmt = $stmt;
+    private ?Result $result = null;
+
+    public ?string $debugSql = null;
+
+    public function __construct(Connection $connection, string $sql)
+    {
+        $this->connection = $connection;
+        $this->sql = $sql;
     }
 
-    /**
-     *
-     * Binds $value to $pos
-     *
-     * from http://stackoverflow.com/a/6743773/164469
-     *
-     * @param $pos string "field"
-     * @param $value mixed [value]
-     * @param null $type PDO::PARAM_* code
-     * @return $this
-     */
-    public function bind($pos, $value, $type = null)
+    public function bind(string $pos, mixed $value): self
     {
-        if (is_null($type)) {
-            switch (true) {
-                case is_int($value):
-                    $type = PDO::PARAM_INT;
-                    break;
-                case is_bool($value):
-                    $type = PDO::PARAM_BOOL;
-                    break;
-                case is_null($value):
-                    $type = PDO::PARAM_NULL;
-                    break;
-                default:
-                    $type = PDO::PARAM_STR;
-            }
-        }
-
-        $this->stmt->bindValue(":$pos", $value, $type);
-
+        $this->bindings[ltrim($pos, ':')] = $value;
         return $this;
     }
 
     /**
-     * Executes the current statement, returns the number of modified rows
-     *
-     * @param array $bindings [ ":field" => "value", ... ]
-     * @throws \PDOException
-     * @throws \Exception when an error occurs
+     * @param array<string,mixed>|null $bindings
      */
-    function exec($bindings = null)
+    public function exec(?array $bindings = null): int
     {
-        $res = $this->stmt->execute($bindings);
+        $params = $this->normalizeBindings($bindings);
+        $this->freeResult();
 
-        if ($res !== false) {
-            return $this->stmt->rowCount();
-        } else {
-            throw new \Exception(json_encode($this->stmt->errorInfo()), 500);
+        if ($this->isResultSetQuery($this->sql)) {
+            $this->result = $this->connection->executeQuery($this->sql, $params);
+            return $this->result->rowCount();
         }
+
+        return $this->connection->executeStatement($this->sql, $params);
     }
 
-    /**
-     * Fetches a row from a result set associated with the current Statement.
-     *
-     * @return array
-     */
-    function fetch()
+    /** @return array<string,mixed>|false */
+    public function fetch(): array|false
     {
-        return $this->stmt->fetch(PDO::FETCH_ASSOC);
+        if ($this->result === null) {
+            return false;
+        }
+
+        $row = $this->result->fetchAssociative();
+        return $row === false ? false : $row;
     }
 
-    /**
-     * Returns an array containing all of the result set rows
-     *
-     * @return array
-     */
-    function all()
+    /** @return list<array<string,mixed>> */
+    public function all(): array
     {
-        return $this->stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->result === null) {
+            return [];
+        }
+
+        return $this->result->fetchAllAssociative();
     }
 
+    /** @return array<int|string,array<string,mixed>> */
+    public function map(string $field): array
+    {
+        if ($this->result === null) {
+            return [];
+        }
 
-    /**
-     * Returns an associative array with all the result set rows mapped by $field
-     * @param string $field the field to index
-     */
-    function map($field) {
-        $map = array();
+        $mapped = [];
 
-        while($row = $this->stmt->fetch(PDO::FETCH_ASSOC)) {
-            if(!isset($row[$field])) {
-                throw new \Exception("Invalid field $field", 500);
+        while (($row = $this->result->fetchAssociative()) !== false) {
+            if (!array_key_exists($field, $row)) {
+                throw new InvalidQueryException("Invalid field {$field}");
             }
 
-            $map[$row[$field]] = $row;
+            $mapped[$row[$field]] = $row;
         }
 
-        return $map;
+        return $mapped;
     }
 
+    /**
+     * @param array<string,mixed>|null $bindings
+     * @return array<string,mixed>
+     */
+    private function normalizeBindings(?array $bindings): array
+    {
+        $params = $this->bindings;
 
+        if ($bindings !== null) {
+            foreach ($bindings as $key => $value) {
+                $params[ltrim((string) $key, ':')] = $value;
+            }
+        }
+
+        return $params;
+    }
+
+    private function isResultSetQuery(string $sql): bool
+    {
+        return (bool) preg_match('/^\s*(SELECT|SHOW|DESCRIBE|PRAGMA|WITH)\b/i', $sql);
+    }
+
+    private function freeResult(): void
+    {
+        if ($this->result !== null) {
+            $this->result->free();
+            $this->result = null;
+        }
+    }
 }
