@@ -1,1 +1,2 @@
 form { display: grid; gap: .75rem; max-width: 36rem; }
+.empty-state { display: grid; place-items: center; min-height: 8rem; padding: 1rem; border: 1px dashed #cbd5e1; border-radius: .5rem; color: #667085; background: #f8fafc; text-align: center; }
