@@ -2,4 +2,11 @@
 <component-property name="dbName" type="string" required example="app"></component-property>
 <component-property name="tableName" type="string" required example="users"></component-property>
 
-<db-table-rows .dbName=${dbName} .tableName=${tableName}></db-table-rows>
+<data-source
+  .key=${`db:${dbName}:${tableName}:schema`}
+  .resource=${() => api.getTableSchema({ path: { dbName, tableName } })}
+  @db-show-rows=${() => navigate('db-table-rows', { dbName, tableName })}
+  @db-create-row=${() => navigate('db-row-create', { dbName, tableName })}
+>
+  <db-table-schema></db-table-schema>
+</data-source>

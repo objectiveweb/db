@@ -1,0 +1,15 @@
+<title>Database Row Detail View</title>
+<component-property name="resource" type="object" context></component-property>
+
+<dl class="fields">
+  ${(resource?.schema?.columns || []).map(column => html`
+    <div class="field">
+      <dt>${column.name}</dt>
+      <dd>${resource?.row?.[column.name] == null ? '—' : (typeof resource.row[column.name] === 'object' ? JSON.stringify(resource.row[column.name]) : String(resource.row[column.name]))}</dd>
+    </div>
+  `)}
+</dl>
+<div class="actions">
+  ${resource?.schema?.writable && resource?.schema?.primaryKey ? html`<button type="button" data-action="db-edit-row">Edit</button>` : ''}
+  <button type="button" data-action="db-back-to-rows">Rows</button>
+</div>

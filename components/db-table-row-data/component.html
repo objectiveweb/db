@@ -4,9 +4,22 @@
 <component-property name="schema" type="object" context></component-property>
 
 <data-source
-  .resource=${api.listRows({ path: { dbName, tableName } })}
-  @db-open-row=${event => navigate("db-row-form", { dbName, tableName, id: String(event.detail.resource[schema.primaryKey]) })}
-  @db-create-row=${event => navigate("db-row-form", { dbName, tableName })}
+  .key=${`db:${dbName}:${tableName}:rows`}
+  .resource=${() => api.listRows({ path: { dbName, tableName } })}
+  @db-view-row=${event => navigate('db-row-details', { dbName, tableName, id: String(event.detail.resource[schema.primaryKey]) })}
+  @db-edit-row=${event => navigate('db-row-editor', { dbName, tableName, id: String(event.detail.resource[schema.primaryKey]) })}
+  @db-delete-row=${event => Promise.resolve(api.deleteRow({ path: { dbName, tableName, id: String(event.detail.resource[schema.primaryKey]) } })).then(() => event.currentTarget.invalidate(`db:${dbName}:${tableName}:rows`))}
+  @db-create-row=${() => navigate('db-row-create', { dbName, tableName })}
+  @db-refresh-rows=${event => event.currentTarget.refresh()}
 >
-  <db-row-list .schema=${schema}></db-row-list>
+  <db-row-list
+    .schema=${schema}
+    .viewable=${Boolean(schema?.primaryKey)}
+    .editable=${Boolean(schema?.writable && schema?.primaryKey)}
+    .deletable=${Boolean(schema?.writable && schema?.primaryKey)}
+  ></db-row-list>
+  <div class="actions">
+    ${schema?.writable ? html`<button type="button" data-action="db-create-row">New row</button>` : ''}
+    <button type="button" data-action="db-refresh-rows">Refresh</button>
+  </div>
 </data-source>

@@ -1,20 +1,17 @@
 <title>Database Rows</title>
 <component-property name="resource" type="object" context></component-property>
 <component-property name="schema" type="object"></component-property>
+<component-property name="viewable" type="boolean"></component-property>
+<component-property name="editable" type="boolean"></component-property>
+<component-property name="deletable" type="boolean"></component-property>
 
-<data-table .resource=${resource?.data || []}>
-  <table>
-    <thead><tr>${(schema?.columns || []).map(column => html`<th>${column.name}</th>`)}<th></th></tr></thead>
-    <tbody>
-      <template data-row>
-        <tr>
-          ${(schema?.columns || []).map(column => html`<td><data-label field=${column.name}></data-label></td>`)}
-          <td><button type="button" data-action="db-open-row">Open</button></td>
-        </tr>
-      </template>
-    </tbody>
-  </table>
-</data-table>
-<p>${resource?.total ?? 0} rows</p>
-<button type="button" data-action="db-create-row">New row</button>
-
+<data-table
+  .resource=${resource?.data || []}
+  .columns=${(schema?.columns || []).map(column => ({ field: column.name, label: column.name }))}
+  .actions=${[
+    viewable ? { name: 'db-view-row', label: 'View' } : null,
+    editable ? { name: 'db-edit-row', label: 'Edit' } : null,
+    deletable ? { name: 'db-delete-row', label: 'Delete', className: 'danger' } : null
+  ].filter(Boolean)}
+></data-table>
+<p class="count">${resource?.total ?? 0} rows</p>

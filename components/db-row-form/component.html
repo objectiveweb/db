@@ -1,9 +1,23 @@
 <title>Database Row Form</title>
-<component-property name="dbName" type="string" required example="app"></component-property>
-<component-property name="tableName" type="string" required example="users"></component-property>
-<component-property name="id" type="string" default=""></component-property>
+<component-property name="data" type="object" context></component-property>
+<component-property name="showDelete" type="boolean"></component-property>
 
-<data-source .resource=${api.getTableSchema({ path: { dbName, tableName } })}>
-  <db-row-editor .dbName=${dbName} .tableName=${tableName} .id=${id}></db-row-editor>
+<data-source .resource=${data?.row || {}}>
+  <form class="row-form">
+    ${(data?.schema?.columns || []).filter(column => column.writable).map(column =>
+      column.type === 'boolean'
+        ? html`<form-checkbox field=${column.name}>${column.name}</form-checkbox>`
+        : html`<form-input
+            field=${column.name}
+            type=${['integer','bigint','float','double','decimal','number'].includes(column.type) ? 'number' : 'text'}
+            ?required=${!column.nullable && column.default == null}
+          ></form-input>`
+    )}
+    ${(data?.schema?.columns || []).some(column => column.writable) ? '' : html`<p class="empty">This table has no writable columns.</p>`}
+    <div class="actions">
+      <button type="button" data-action="db-save-row" data-validate>Save</button>
+      ${showDelete ? html`<button type="button" class="danger" data-action="db-delete-row">Delete</button>` : ''}
+      <button type="button" data-action="db-cancel-row">Cancel</button>
+    </div>
+  </form>
 </data-source>
-

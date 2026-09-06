@@ -1,0 +1,34 @@
+<title>Database Table Schema</title>
+<component-property name="schema" type="object" context></component-property>
+
+<section class="summary">
+  <div><strong>${schema?.name || 'Table'}</strong></div>
+  <div>Primary key: <code>${schema?.primaryKey || 'none'}</code></div>
+  <div>Writable: ${schema?.writable ? 'yes' : 'no'}</div>
+</section>
+
+<data-table .resource=${schema?.columns || []}>
+  <table>
+    <thead>
+      <tr><th>Column</th><th>Type</th><th>Nullable</th><th>Default</th><th>Auto</th><th>Primary</th><th>Writable</th></tr>
+    </thead>
+    <tbody>
+      <template data-row>
+        <tr>
+          <td><data-label field="name"></data-label></td>
+          <td><data-label field="type"></data-label></td>
+          <td><data-label field="nullable"></data-label></td>
+          <td><data-label field="default"></data-label></td>
+          <td><data-label field="autoIncrement"></data-label></td>
+          <td><data-label field="primary"></data-label></td>
+          <td><data-label field="writable"></data-label></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</data-table>
+
+<div class="actions">
+  <button type="button" data-action="db-show-rows">Rows</button>
+  ${schema?.writable ? html`<button type="button" data-action="db-create-row">New row</button>` : ''}
+</div>

@@ -9,52 +9,78 @@ canvas:
   - id: overview
     name: Overview
     items:
-      - resource:
-          type: component
-          ref: db-list
-        x: -260
-        y: -60
-        width: 320
-        height: 260
-      - resource:
-          type: component
-          ref: db-table-list
-        x: 200
-        y: -220
-        width: 383
-        height: 445
-      - resource:
-          type: component
-          ref: db-table-workspace
-        x: 300
-        y: 280
-        width: 560
-        height: 380
-      - resource:
-          type: operation
-          id: op-get-table-schema
-        x: 1020
-        y: 380
-        width: 531
-        height: 244
-      - resource:
-          type: component
-          ref: db-row-editor
-        x: 800
-        y: -220
-        width: 440
-        height: 320
-      - resource:
-          type: operation
-          id: op-list-databases
-        x: -40
-        y: -500
-        width: 320
+      - resource: { type: component, ref: db-list }
+        x: -520
+        y: -360
+        width: 340
+        height: 300
+      - resource: { type: operation, id: op-list-databases }
+        x: -500
+        y: 20
+        width: 340
         height: 190
-      - resource:
-          type: component
-          ref: db-table-rows
+      - resource: { type: component, ref: db-table-list }
+        x: -80
+        y: -360
+        width: 470
+        height: 360
+      - resource: { type: operation, id: op-list-tables }
+        x: -40
+        y: 80
+        width: 380
+        height: 200
+      - resource: { type: component, ref: db-table-workspace }
         x: 500
-        y: 720
-        width: 445
-        height: 411
+        y: -360
+        width: 680
+        height: 470
+      - resource: { type: operation, id: op-get-table-schema }
+        x: 620
+        y: 180
+        width: 440
+        height: 210
+      - resource: { type: component, ref: db-table-rows }
+        x: 1260
+        y: -360
+        width: 680
+        height: 500
+      - resource: { type: operation, id: op-list-rows }
+        x: 1370
+        y: 210
+        width: 440
+        height: 230
+      - resource: { type: component, ref: db-row-details }
+        x: 300
+        y: 620
+        width: 540
+        height: 400
+      - resource: { type: operation, id: op-get-row }
+        x: 360
+        y: 1080
+        width: 420
+        height: 210
+      - resource: { type: component, ref: db-row-editor }
+        x: 920
+        y: 620
+        width: 580
+        height: 520
+      - resource: { type: operation, id: op-update-row }
+        x: 900
+        y: 1200
+        width: 400
+        height: 220
+      - resource: { type: operation, id: op-delete-row }
+        x: 1340
+        y: 1200
+        width: 400
+        height: 220
+      - resource: { type: component, ref: db-row-create }
+        x: 1600
+        y: 620
+        width: 580
+        height: 500
+      - resource: { type: operation, id: op-create-row }
+        x: 1690
+        y: 1180
+        width: 400
+        height: 220

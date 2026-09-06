@@ -3,19 +3,23 @@
 
 <data-table
   .resource=${api.listTables({ path: { dbName } })}
-  @open-table=${event => event.detail.resource.writable && navigate('db-table-workspace', { dbName, tableName: event.detail.resource.name })}
+  @open-table=${event => navigate('db-table-workspace', { dbName, tableName: event.detail.resource.name })}
+  @open-rows=${event => navigate('db-table-rows', { dbName, tableName: event.detail.resource.name })}
 >
   <table>
-    <thead><tr><th>Table</th><th>Writable</th><th></th></tr></thead>
+    <thead><tr><th>Table</th><th>Primary key</th><th>Writable</th><th></th></tr></thead>
     <tbody>
       <template data-row>
         <tr>
           <td><data-label field="name"></data-label></td>
+          <td><data-label field="primaryKey"></data-label></td>
           <td><data-label field="writable"></data-label></td>
-          <td><button type="button" data-action="open-table">Open</button></td>
+          <td>
+            <button type="button" data-action="open-table">Schema</button>
+            <button type="button" data-action="open-rows">Rows</button>
+          </td>
         </tr>
       </template>
     </tbody>
   </table>
 </data-table>
-
