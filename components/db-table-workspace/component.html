@@ -5,7 +5,12 @@
 <data-source
   .key=${`db:${dbName}:${tableName}:schema`}
   .resource=${() => api.getTableSchema({ path: { dbName, tableName } })}
-  @db-show-rows=${() => navigate('db-table-rows', { dbName, tableName })}
+  @db-show-rows=${event => navigate('db-table-rows', {
+    dbName,
+    tableName,
+    primaryKey: event.currentTarget.resolvedResource?.primaryKey || '',
+    writable: Boolean(event.currentTarget.resolvedResource?.writable)
+  })}
   @db-create-row=${() => navigate('db-row-create', { dbName, tableName })}
 >
   <db-table-schema></db-table-schema>
