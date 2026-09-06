@@ -4,7 +4,12 @@
 <data-table
   .resource=${api.listTables({ path: { dbName } })}
   @open-table=${event => navigate('db-table-workspace', { dbName, tableName: event.detail.resource.name })}
-  @open-rows=${event => navigate('db-table-rows', { dbName, tableName: event.detail.resource.name })}
+  @open-rows=${event => navigate('db-table-rows', {
+    dbName,
+    tableName: event.detail.resource.name,
+    primaryKey: event.detail.resource.primaryKey || '',
+    writable: Boolean(event.detail.resource.writable)
+  })}
 >
   <table>
     <thead><tr><th>Table</th><th>Primary key</th><th>Writable</th><th></th></tr></thead>
