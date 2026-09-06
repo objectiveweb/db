@@ -16,7 +16,10 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/Database' }
               examples:
-                default: { value: [ { name: app }, { name: analytics } ] }
+                default:
+                  value:
+                    - { name: app }
+                    - { name: analytics }
       default: { $ref: '#/components/responses/ApiError' }
   /{dbName}:
     get:
@@ -30,7 +33,17 @@ paths:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/TableSummary' } }
               examples:
-                default: { value: [ { name: users, primaryKey: id, writable: true }, { name: audit_log, primaryKey: null, writable: false } ] }
+                default:
+                  x-metaproject-match:
+                    path: { dbName: app }
+                  value:
+                    - { name: users, primaryKey: id, writable: true }
+                    - { name: audit_log, primaryKey: id, writable: false }
+                analytics:
+                  x-metaproject-match:
+                    path: { dbName: analytics }
+                  value:
+                    - { name: events, primaryKey: id, writable: false }
       default: { $ref: '#/components/responses/ApiError' }
   /{dbName}/{tableName}/schema:
     get:
@@ -44,7 +57,40 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/TableSchema' }
               examples:
-                default: { value: { name: users, primaryKey: id, writable: true, columns: [ { name: id, type: integer, nullable: false, default: null, autoIncrement: true, primary: true, writable: false }, { name: name, type: string, nullable: false, default: null, autoIncrement: false, primary: false, writable: true } ] } }
+                default:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: users }
+                  value:
+                    name: users
+                    primaryKey: id
+                    writable: true
+                    columns:
+                      - { name: id, type: integer, nullable: false, default: null, autoIncrement: true, primary: true, writable: false }
+                      - { name: name, type: string, nullable: false, default: null, autoIncrement: false, primary: false, writable: true }
+                      - { name: email, type: string, nullable: false, default: null, autoIncrement: false, primary: false, writable: true }
+                      - { name: active, type: boolean, nullable: false, default: true, autoIncrement: false, primary: false, writable: true }
+                audit-log:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: audit_log }
+                  value:
+                    name: audit_log
+                    primaryKey: id
+                    writable: false
+                    columns:
+                      - { name: id, type: integer, nullable: false, default: null, autoIncrement: true, primary: true, writable: false }
+                      - { name: message, type: string, nullable: false, default: null, autoIncrement: false, primary: false, writable: false }
+                      - { name: created_at, type: datetime, nullable: false, default: null, autoIncrement: false, primary: false, writable: false }
+                analytics-events:
+                  x-metaproject-match:
+                    path: { dbName: analytics, tableName: events }
+                  value:
+                    name: events
+                    primaryKey: id
+                    writable: false
+                    columns:
+                      - { name: id, type: integer, nullable: false, default: null, autoIncrement: true, primary: true, writable: false }
+                      - { name: event_type, type: string, nullable: false, default: null, autoIncrement: false, primary: false, writable: false }
+                      - { name: created_at, type: datetime, nullable: false, default: null, autoIncrement: false, primary: false, writable: false }
       default: { $ref: '#/components/responses/ApiError' }
   /{dbName}/{tableName}:
     get:
@@ -64,7 +110,36 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/RowPage' }
               examples:
-                default: { value: { data: [ { id: 1, name: Ada }, { id: 2, name: Grace } ], total: 2, offset: 0, limit: 25 } }
+                default:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: users }
+                  value:
+                    data:
+                      - { id: 1, name: Ada, email: ada@example.test, active: true }
+                      - { id: 2, name: Grace, email: grace@example.test, active: false }
+                    total: 2
+                    offset: 0
+                    limit: 25
+                audit-log:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: audit_log }
+                  value:
+                    data:
+                      - { id: 1, message: User created, created_at: '2026-09-01T10:00:00Z' }
+                      - { id: 2, message: User updated, created_at: '2026-09-01T11:00:00Z' }
+                    total: 2
+                    offset: 0
+                    limit: 25
+                analytics-events:
+                  x-metaproject-match:
+                    path: { dbName: analytics, tableName: events }
+                  value:
+                    data:
+                      - { id: 1, event_type: page_view, created_at: '2026-09-01T12:00:00Z' }
+                      - { id: 2, event_type: signup, created_at: '2026-09-01T12:05:00Z' }
+                    total: 2
+                    offset: 0
+                    limit: 25
       default: { $ref: '#/components/responses/ApiError' }
     post:
       operationId: createRow
@@ -76,14 +151,14 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/Row' }
             examples:
-              default: { value: { name: Ada } }
+              default: { value: { name: Katherine, email: katherine@example.test, active: true } }
       responses:
         '201':
           description: Created row identifier
           content:
             application/json:
               schema: { $ref: '#/components/schemas/RowIdentifier' }
-              examples: { default: { value: { id: '2' } } }
+              examples: { default: { value: { id: '3' } } }
       default: { $ref: '#/components/responses/ApiError' }
   /{dbName}/{tableName}/{id}:
     get:
@@ -96,7 +171,31 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Row' }
-              examples: { default: { value: { id: 1, name: Ada } } }
+              examples:
+                default:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: users, id: '1' }
+                  value: { id: 1, name: Ada, email: ada@example.test, active: true }
+                users-2:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: users, id: '2' }
+                  value: { id: 2, name: Grace, email: grace@example.test, active: false }
+                audit-log-1:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: audit_log, id: '1' }
+                  value: { id: 1, message: User created, created_at: '2026-09-01T10:00:00Z' }
+                audit-log-2:
+                  x-metaproject-match:
+                    path: { dbName: app, tableName: audit_log, id: '2' }
+                  value: { id: 2, message: User updated, created_at: '2026-09-01T11:00:00Z' }
+                analytics-event-1:
+                  x-metaproject-match:
+                    path: { dbName: analytics, tableName: events, id: '1' }
+                  value: { id: 1, event_type: page_view, created_at: '2026-09-01T12:00:00Z' }
+                analytics-event-2:
+                  x-metaproject-match:
+                    path: { dbName: analytics, tableName: events, id: '2' }
+                  value: { id: 2, event_type: signup, created_at: '2026-09-01T12:05:00Z' }
       default: { $ref: '#/components/responses/ApiError' }
     patch:
       operationId: updateRow
@@ -108,14 +207,14 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/Row' }
             examples:
-              default: { value: { name: Grace } }
+              default: { value: { name: Grace Hopper, email: grace@example.test, active: true } }
       responses:
         '200':
           description: Updated row
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Row' }
-              examples: { default: { value: { id: 1, name: Grace } } }
+              examples: { default: { value: { id: 2, name: Grace Hopper, email: grace@example.test, active: true } } }
       default: { $ref: '#/components/responses/ApiError' }
     delete:
       operationId: deleteRow
