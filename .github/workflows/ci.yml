@@ -5,6 +5,20 @@ on:
   pull_request:
 
 jobs:
+  component-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Metaproject component tests
+        run: npm test
+
   test:
     runs-on: ubuntu-latest
     strategy:
