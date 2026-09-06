@@ -10,7 +10,10 @@
     api.getRow({ path: { dbName, tableName, id } })
   ]).then(([schema, row]) => ({ schema, row }))}
   @db-edit-row=${() => navigate('db-row-editor', { dbName, tableName, id })}
-  @db-back-to-rows=${() => navigate('db-table-rows', { dbName, tableName })}
+  @db-back-to-rows=${event => {
+    const schema = event.currentTarget.resolvedResource?.schema;
+    navigate('db-table-rows', { dbName, tableName, primaryKey: schema?.primaryKey || '', writable: Boolean(schema?.writable) });
+  }}
 >
   <db-row-details-view></db-row-details-view>
 </data-source>
