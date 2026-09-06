@@ -1,10 +1,25 @@
 <title>Database Table Rows</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 <component-property name="tableName" type="string" required example="users"></component-property>
+<component-property name="primaryKey" type="string" example="id"></component-property>
+<component-property name="writable" type="boolean" example="true"></component-property>
 
 <data-source
-  .key=${`db:${dbName}:${tableName}:schema`}
-  .resource=${() => api.getTableSchema({ path: { dbName, tableName } })}
+  .key=${`db:${dbName}:${tableName}:rows`}
+  .resource=${() => api.listRows({ path: { dbName, tableName } })}
+  @db-view-row=${event => primaryKey && navigate('db-row-details', { dbName, tableName, id: String(event.detail.resource[primaryKey]) })}
+  @db-edit-row=${event => primaryKey && navigate('db-row-editor', { dbName, tableName, id: String(event.detail.resource[primaryKey]) })}
+  @db-delete-row=${event => primaryKey && Promise.resolve(api.deleteRow({ path: { dbName, tableName, id: String(event.detail.resource[primaryKey]) } })).then(() => event.currentTarget.invalidate(`db:${dbName}:${tableName}:rows`))}
+  @db-create-row=${() => navigate('db-row-create', { dbName, tableName })}
+  @db-refresh-rows=${event => event.currentTarget.refresh()}
 >
-  <db-table-row-data .dbName=${dbName} .tableName=${tableName}></db-table-row-data>
+  <db-row-list
+    .viewable=${Boolean(primaryKey)}
+    .editable=${Boolean(writable && primaryKey)}
+    .deletable=${Boolean(writable && primaryKey)}
+  ></db-row-list>
+  <div class="actions">
+    ${writable ? html`<button type="button" data-action="db-create-row">New row</button>` : ''}
+    <button type="button" data-action="db-refresh-rows">Refresh</button>
+  </div>
 </data-source>
