@@ -1,0 +1,41 @@
+<title>Edit Row</title>
+<component-property name="dbName" type="string" required example="app"></component-property>
+<component-property name="tableName" type="string" required example="users"></component-property>
+<component-property name="id" type="string" default=""></component-property>
+<component-property name="primaryKey" type="string" example="id"></component-property>
+<component-property name="writable" type="boolean" example="true"></component-property>
+
+${id ? html`
+  <header class="component-heading"><strong>Edit ${dbName}.${tableName} #${id}</strong></header>
+  <data-table
+    .resource=${Promise.all([
+      Promise.resolve(api.getTableSchema({ path: { dbName, tableName } })),
+      Promise.resolve(api.getRow({ path: { dbName, tableName, id } }))
+    ]).then(([schema, row]) => editableFields(schema, row))}
+    @save-row=${event => Promise.resolve(api.updateRow({
+      path: { dbName, tableName, id },
+      body: rowBody(event.detail.resource || [])
+    })).then(() => {
+      invalidateRow(dbName, tableName, id);
+      navigate('db-table-rows', { dbName, tableName, primaryKey, writable, refresh: String(Date.now()) });
+    })}
+    @cancel-row=${() => navigate('db-row-details', { dbName, tableName, id, primaryKey, writable })}
+  >
+    <form class="row-form">
+      <table>
+        <tbody>
+          <template data-row>
+            <tr>
+              <th><data-label field="label"></data-label></th>
+              <td><form-input field="value"></form-input></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="toolbar">
+        <button type="button" data-action="save-row" data-validate>Save</button>
+        <button type="button" data-action="cancel-row">Cancel</button>
+      </div>
+    </form>
+  </data-table>
+` : html`<div class="empty-state" role="status">No record loaded.</div>`}

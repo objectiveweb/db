@@ -1,0 +1,18 @@
+<title>Database List</title>
+
+<data-table
+  .resource=${Promise.resolve(api.listDatabases())}
+  @open-database=${event => navigate('db-table-list', { dbName: event.detail.resource.name })}
+>
+  <table>
+    <thead><tr><th>Database</th><th></th></tr></thead>
+    <tbody>
+      <template data-row>
+        <tr>
+          <td><data-label field="name"></data-label></td>
+          <td><button type="button" data-action="open-database">Open</button></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</data-table>

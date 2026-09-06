@@ -1,0 +1,32 @@
+<title>Table Rows</title>
+<component-property name="dbName" type="string" required example="app"></component-property>
+<component-property name="tableName" type="string" required example="users"></component-property>
+<component-property name="primaryKey" type="string" example="id"></component-property>
+<component-property name="writable" type="boolean" example="true"></component-property>
+<component-property name="refresh" type="string" default=""></component-property>
+
+<header class="component-heading"><strong>${dbName}.${tableName}</strong></header>
+<data-table
+  .resource=${Promise.resolve(api.listRows({ path: { dbName, tableName } })).then(page => page?.data || [])}
+  .actions=${[
+    primaryKey ? { name: 'view-row', label: 'View' } : null,
+    writable && primaryKey ? { name: 'edit-row', label: 'Edit' } : null
+  ].filter(Boolean)}
+  @view-row=${event => primaryKey && navigate('db-row-details', {
+    dbName,
+    tableName,
+    id: String(event.detail.resource[primaryKey]),
+    primaryKey,
+    writable
+  })}
+  @edit-row=${event => primaryKey && navigate('db-row-editor', {
+    dbName,
+    tableName,
+    id: String(event.detail.resource[primaryKey]),
+    primaryKey,
+    writable
+  })}
+></data-table>
+<div class="toolbar">
+  <button type="button" @click=${() => navigate('db-table-rows', { dbName, tableName, primaryKey, writable, refresh: String(Date.now()) })}>Refresh</button>
+</div>
