@@ -10,77 +10,67 @@ canvas:
     name: Overview
     items:
       - resource: { type: component, ref: db-list }
-        x: -520
+        x: -560
         y: -360
-        width: 340
-        height: 300
+        width: 360
+        height: 320
       - resource: { type: operation, id: op-list-databases }
-        x: -500
-        y: 20
-        width: 340
+        x: -540
+        y: 40
+        width: 360
         height: 190
+
       - resource: { type: component, ref: db-table-list }
         x: -80
         y: -360
-        width: 470
-        height: 360
+        width: 520
+        height: 420
       - resource: { type: operation, id: op-list-tables }
-        x: -40
-        y: 80
-        width: 380
+        x: -20
+        y: 140
+        width: 400
         height: 200
-      - resource: { type: component, ref: db-table-workspace }
-        x: 500
-        y: -360
-        width: 680
-        height: 470
+
+      - resource: { type: component, ref: db-table-schema }
+        x: 560
+        y: -440
+        width: 720
+        height: 500
       - resource: { type: operation, id: op-get-table-schema }
-        x: 620
-        y: 180
+        x: 700
+        y: 140
         width: 440
         height: 210
+
       - resource: { type: component, ref: db-table-rows }
-        x: 1260
-        y: -360
-        width: 680
-        height: 500
+        x: 1420
+        y: -440
+        width: 760
+        height: 520
       - resource: { type: operation, id: op-list-rows }
-        x: 1370
-        y: 210
+        x: 1580
+        y: 160
         width: 440
         height: 230
+
       - resource: { type: component, ref: db-row-details }
-        x: 300
-        y: 620
-        width: 540
-        height: 400
+        x: 520
+        y: 560
+        width: 560
+        height: 440
       - resource: { type: operation, id: op-get-row }
-        x: 360
+        x: 600
         y: 1080
         width: 420
         height: 210
+
       - resource: { type: component, ref: db-row-editor }
-        x: 920
-        y: 620
-        width: 580
-        height: 520
+        x: 1220
+        y: 560
+        width: 620
+        height: 560
       - resource: { type: operation, id: op-update-row }
-        x: 900
+        x: 1320
         y: 1200
-        width: 400
-        height: 220
-      - resource: { type: operation, id: op-delete-row }
-        x: 1340
-        y: 1200
-        width: 400
-        height: 220
-      - resource: { type: component, ref: db-row-create }
-        x: 1600
-        y: 620
-        width: 580
-        height: 500
-      - resource: { type: operation, id: op-create-row }
-        x: 1690
-        y: 1180
-        width: 400
+        width: 420
         height: 220

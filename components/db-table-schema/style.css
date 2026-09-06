@@ -1,6 +1,0 @@
-:host { display: grid; gap: .75rem; }
-.summary { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: baseline; }
-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
-th, td { padding: .45rem .55rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
-th { background: #f8fafc; font-weight: 650; }
-.actions { display: flex; flex-wrap: wrap; gap: .5rem; }

@@ -3,66 +3,78 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
-async function component(name){return readFile(path.join('components',name,'component.html'),'utf8');}
+const expected = [
+  'db-list',
+  'db-table-list',
+  'db-table-schema',
+  'db-table-rows',
+  'db-row-details',
+  'db-row-editor'
+];
 
-test('database table shows schema while database table rows fetches only row data',async()=>{
-  const table=await component('db-table-workspace');
-  const rows=await component('db-table-rows');
-  assert.match(table,/api\.getTableSchema/);
-  assert.match(table,/<db-table-schema/);
-  assert.match(rows,/api\.listRows/);
-  assert.doesNotMatch(rows,/api\.getTableSchema/);
-  assert.match(rows,/<db-row-list/);
-  assert.match(rows,/primaryKey/);
-  assert.match(rows,/writable/);
-});
+async function component(name) {
+  return readFile(path.join('components', `${name}.js`), 'utf8');
+}
 
-test('table navigation passes selected table state to schema and row components',async()=>{
-  const source=await component('db-table-list');
-  assert.match(source,/navigate\('db-table-workspace', \{ dbName, tableName: event\.detail\.resource\.name \}\)/);
-  assert.match(source,/navigate\('db-table-rows'/);
-  assert.match(source,/primaryKey: event\.detail\.resource\.primaryKey/);
-  assert.match(source,/writable: Boolean\(event\.detail\.resource\.writable\)/);
-});
-
-test('generic row table derives fields from returned rows and exposes optional actions',async()=>{
-  const source=await component('db-row-list');
-  assert.doesNotMatch(source,/\.columns=\$\{/);
-  assert.match(source,/\.resource=\$\{resource\?\.data \|\| \[\]\}/);
-  assert.match(source,/\.actions=\$\{/);
-  assert.match(source,/viewable/);
-  assert.match(source,/editable/);
-  assert.match(source,/deletable/);
-});
-
-test('row editor stays empty until navigation supplies a record id',async()=>{
-  const edit=await component('db-row-editor');
-  assert.match(edit,/name="id" type="string" default=""/);
-  assert.doesNotMatch(edit,/name="id"[^>]*example=/);
-  assert.match(edit,/No record loaded\./);
-  assert.match(edit,/id \? html`/);
-  assert.match(edit,/api\.getRow/);
-  assert.match(edit,/api\.updateRow/);
-});
-
-test('row details edit and create keep reactive row-list invalidation',async()=>{
-  const details=await component('db-row-details');
-  const detailsView=await component('db-row-details-view');
-  const create=await component('db-row-create');
-  assert.match(details,/api\.getRow/);
-  assert.match(details,/primaryKey: schema\?\.primaryKey/);
-  assert.match(detailsView,/<dl class="fields">/);
-  assert.match(create,/api\.createRow/);
-  assert.match(create,/invalidate\(`db:/);
-  assert.match(create,/primaryKey: schema\?\.primaryKey/);
-});
-
-test('all native data-row templates remain static',async()=>{
-  for(const name of await readdir('components')){
-    let source;
-    try{source=await component(name);}catch{continue;}
-    for(const match of source.matchAll(/<template\b[^>]*>([\s\S]*?)<\/template\s*>/gi)){
-      assert.equal(match[1].includes('${'),false,`${name} contains a Lit expression inside native template`);
+test('DB exposes exactly six standalone Metaproject components', async () => {
+  const files = (await readdir('components')).sort();
+  assert.deepEqual(files, expected.map(name => `${name}.js`).sort());
+  for (const name of expected) {
+    const source = await component(name);
+    assert.match(source, new RegExp(`customElements\\.define\\('${name}'`));
+    for (const other of expected) {
+      if (other === name) continue;
+      assert.doesNotMatch(source, new RegExp(`<${other}\\b`));
     }
+  }
+});
+
+test('database and table lists pass navigation parameters explicitly', async () => {
+  const databases = await component('db-list');
+  const tables = await component('db-table-list');
+  assert.match(databases, /api\.listDatabases\(\)/);
+  assert.match(databases, /navigate\('db-table-list', \{ dbName: database\.name \}\)/);
+  assert.match(tables, /api\.listTables/);
+  assert.match(tables, /navigate\('db-table-schema'/);
+  assert.match(tables, /navigate\('db-table-rows'/);
+  assert.match(tables, /primaryKey: table\.primaryKey/);
+  assert.match(tables, /writable: Boolean\(table\.writable\)/);
+});
+
+test('schema and row list have distinct API responsibilities', async () => {
+  const schema = await component('db-table-schema');
+  const rows = await component('db-table-rows');
+  assert.match(schema, /api\.getTableSchema/);
+  assert.doesNotMatch(schema, /api\.listRows/);
+  assert.match(rows, /api\.listRows/);
+  assert.doesNotMatch(rows, /api\.getTableSchema/);
+  assert.match(rows, /Object\.keys\(rows\[0\]\)/);
+  assert.match(rows, /navigate\('db-row-details'/);
+  assert.match(rows, /navigate\('db-row-editor'/);
+});
+
+test('row details loads only the row and renders arbitrary fields', async () => {
+  const details = await component('db-row-details');
+  assert.match(details, /api\.getRow/);
+  assert.doesNotMatch(details, /api\.getTableSchema/);
+  assert.match(details, /Object\.entries\(this\.row\)/);
+});
+
+test('row editor is empty without an id and dynamically edits writable schema fields', async () => {
+  const editor = await component('db-row-editor');
+  assert.match(editor, /this\.id = ''/);
+  assert.match(editor, /No record loaded\./);
+  assert.match(editor, /api\.getTableSchema/);
+  assert.match(editor, /api\.getRow/);
+  assert.match(editor, /api\.updateRow/);
+  assert.match(editor, /filter\(column => column\.writable\)/);
+  assert.match(editor, /metaproject-data-invalidate/);
+});
+
+test('all API calls normalize Mock and HTTP return types', async () => {
+  for (const name of expected) {
+    const source = await component(name);
+    if (!/api\./.test(source)) continue;
+    assert.match(source, /Promise\.(?:resolve|all)/, `${name} must normalize sync Mock and async HTTP results`);
   }
 });

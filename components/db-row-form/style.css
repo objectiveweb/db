@@ -1,5 +1,0 @@
-:host { display: block; }
-.row-form { display: grid; gap: .75rem; max-width: 38rem; }
-.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.danger { color: #b42318; }
-.empty { margin: 0; color: #667085; }

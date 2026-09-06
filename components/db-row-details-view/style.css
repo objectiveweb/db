@@ -1,6 +1,0 @@
-:host { display: grid; gap: .75rem; }
-.fields { display: grid; gap: 0; margin: 0; }
-.field { display: grid; grid-template-columns: minmax(7rem, .45fr) minmax(0, 1fr); gap: 1rem; padding: .55rem 0; border-bottom: 1px solid #e5e7eb; }
-dt { font-weight: 650; color: #475467; }
-dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-.actions { display: flex; gap: .5rem; flex-wrap: wrap; }
