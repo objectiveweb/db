@@ -1,0 +1,12 @@
+<title>Database Table Row Data</title>
+<component-property name="dbName" type="string" required example="app"></component-property>
+<component-property name="tableName" type="string" required example="users"></component-property>
+<component-property name="schema" type="object" context></component-property>
+
+<data-source
+  .resource=${api.listRows({ path: { dbName, tableName } })}
+  @db-open-row=${event => navigate("db-row-form", { dbName, tableName, id: String(event.detail.resource[schema.primaryKey]) })}
+  @db-create-row=${event => navigate("db-row-form", { dbName, tableName })}
+>
+  <db-row-list .schema=${schema}></db-row-list>
+</data-source>

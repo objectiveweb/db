@@ -1,0 +1,9 @@
+<title>Database Row Form</title>
+<component-property name="dbName" type="string" required example="app"></component-property>
+<component-property name="tableName" type="string" required example="users"></component-property>
+<component-property name="id" type="string" default=""></component-property>
+
+<data-source .resource=${api.getTableSchema({ path: { dbName, tableName } })}>
+  <db-row-editor .dbName=${dbName} .tableName=${tableName} .id=${id}></db-row-editor>
+</data-source>
+

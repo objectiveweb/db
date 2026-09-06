@@ -1,0 +1,24 @@
+<title>Database Row Editor</title>
+<component-property name="dbName" type="string" required example="app"></component-property>
+<component-property name="tableName" type="string" required example="users"></component-property>
+<component-property name="id" type="string" default=""></component-property>
+<component-property name="schema" type="object" context></component-property>
+
+<data-source
+  .resource=${id ? api.getRow({ path: { dbName, tableName, id } }) : {}}
+  @db-save-row=${event => (id ? api.updateRow({ path: { dbName, tableName, id }, body: event.detail.resource }) : api.createRow({ path: { dbName, tableName }, body: event.detail.resource })).then(() => navigate('db-table-workspace', { dbName, tableName }))}
+  @db-delete-row=${event => api.deleteRow({ path: { dbName, tableName, id } }).then(() => navigate('db-table-workspace', { dbName, tableName }))}
+  @db-cancel-row=${event => navigate('db-table-workspace', { dbName, tableName })}
+>
+  <form>
+    ${(schema?.columns || []).filter(column => column.writable).map(column => html`
+      ${column.type === 'boolean'
+        ? html`<form-checkbox field=${column.name} ?required=${!column.nullable}>${column.name}</form-checkbox>`
+        : html`<form-input field=${column.name} type=${column.type === 'integer' || column.type === 'bigint' || column.type === 'float' || column.type === 'decimal' ? 'number' : 'text'} ?required=${!column.nullable}></form-input>`}
+    `)}
+    <button type="button" data-action="db-save-row" data-validate>Save</button>
+    ${id ? html`<button type="button" data-action="db-delete-row">Delete</button>` : ''}
+    <button type="button" data-action="db-cancel-row">Cancel</button>
+  </form>
+</data-source>
+

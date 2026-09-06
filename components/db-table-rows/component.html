@@ -1,0 +1,33 @@
+<title>Database Table Rows</title>
+
+<component-property
+  name="dbName"
+  type="string"
+  required
+  example="app">
+</component-property>
+
+<component-property
+  name="tableName"
+  type="string"
+  required
+  example="users">
+</component-property>
+
+<data-source
+  .resource=${api.getTableSchema({
+    path: { dbName, tableName }
+  })}
+>
+  <div>
+    Table: <data-label field="name"></data-label>
+  </div>
+
+  <div>
+    Primary key: <data-label field="primaryKey"></data-label>
+  </div>
+
+  <div>
+    Writable: <data-label field="writable"></data-label>
+  </div>
+</data-source>

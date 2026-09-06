@@ -1,0 +1,27 @@
+{
+  "name": "db",
+  "version": "1.0.0",
+  "description": "Small database abstraction layer built on top of Doctrine DBAL.",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/objectiveweb/db.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/objectiveweb/db/issues"
+  },
+  "homepage": "https://github.com/objectiveweb/db#readme",
+  "devDependencies": {
+    "metaproject": "file:../../../../../metaproject/core"
+  }
+}

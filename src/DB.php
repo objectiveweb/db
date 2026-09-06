@@ -6,6 +6,7 @@ namespace Objectiveweb;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Objectiveweb\DB\Expr;
 use Objectiveweb\DB\Exception\InvalidQueryException;
 use Objectiveweb\DB\Exception\TransactionException;
@@ -307,6 +308,12 @@ class DB
         }
 
         return new Table($this, $table, $params);
+    }
+
+    /** Return Doctrine's schema manager for read-only table discovery. */
+    public function schemaManager(): AbstractSchemaManager
+    {
+        return $this->connection->createSchemaManager();
     }
 
     /**

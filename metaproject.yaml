@@ -1,0 +1,60 @@
+version: 1
+name: DB
+api_root: http://localhost:8087/api
+openapi: openapi.yaml
+components:
+  source: components
+  output: public/components
+canvas:
+  - id: overview
+    name: Overview
+    items:
+      - resource:
+          type: component
+          ref: db-list
+        x: -260
+        y: -60
+        width: 320
+        height: 260
+      - resource:
+          type: component
+          ref: db-table-list
+        x: 200
+        y: -220
+        width: 383
+        height: 445
+      - resource:
+          type: component
+          ref: db-table-workspace
+        x: 300
+        y: 280
+        width: 560
+        height: 380
+      - resource:
+          type: operation
+          id: op-get-table-schema
+        x: 1020
+        y: 380
+        width: 531
+        height: 244
+      - resource:
+          type: component
+          ref: db-row-editor
+        x: 800
+        y: -220
+        width: 440
+        height: 320
+      - resource:
+          type: operation
+          id: op-list-databases
+        x: -40
+        y: -500
+        width: 320
+        height: 190
+      - resource:
+          type: component
+          ref: db-table-rows
+        x: 500
+        y: 720
+        width: 445
+        height: 411

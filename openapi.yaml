@@ -1,0 +1,182 @@
+openapi: 3.1.0
+info:
+  title: DB API
+  version: 1.0.0
+paths:
+  /:
+    get:
+      operationId: listDatabases
+      x-project-id: op-list-databases
+      responses:
+        '200':
+          description: Registered databases
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Database' }
+              examples:
+                default: { value: [ { name: app }, { name: analytics } ] }
+      default: { $ref: '#/components/responses/ApiError' }
+  /{dbName}:
+    get:
+      operationId: listTables
+      x-project-id: op-list-tables
+      parameters: [ { $ref: '#/components/parameters/DbName' } ]
+      responses:
+        '200':
+          description: Database tables
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/TableSummary' } }
+              examples:
+                default: { value: [ { name: users, primaryKey: id, writable: true }, { name: audit_log, primaryKey: null, writable: false } ] }
+      default: { $ref: '#/components/responses/ApiError' }
+  /{dbName}/{tableName}/schema:
+    get:
+      operationId: getTableSchema
+      x-project-id: op-get-table-schema
+      parameters: [ { $ref: '#/components/parameters/DbName' }, { $ref: '#/components/parameters/TableName' } ]
+      responses:
+        '200':
+          description: Table metadata
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TableSchema' }
+              examples:
+                default: { value: { name: users, primaryKey: id, writable: true, columns: [ { name: id, type: integer, nullable: false, default: null, autoIncrement: true, primary: true, writable: false }, { name: name, type: string, nullable: false, default: null, autoIncrement: false, primary: false, writable: true } ] } }
+      default: { $ref: '#/components/responses/ApiError' }
+  /{dbName}/{tableName}:
+    get:
+      operationId: listRows
+      x-project-id: op-list-rows
+      parameters:
+        - { $ref: '#/components/parameters/DbName' }
+        - { $ref: '#/components/parameters/TableName' }
+        - { name: filter, in: query, schema: { type: string }, description: JSON equality filter, example: '{"active":true}' }
+        - { name: sort, in: query, schema: { type: string }, description: Comma-separated field:direction values, example: 'name:asc' }
+        - { name: offset, in: query, schema: { type: integer, minimum: 0 }, example: 0 }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 }, example: 25 }
+      responses:
+        '200':
+          description: Page of dynamic rows
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RowPage' }
+              examples:
+                default: { value: { data: [ { id: 1, name: Ada }, { id: 2, name: Grace } ], total: 2, offset: 0, limit: 25 } }
+      default: { $ref: '#/components/responses/ApiError' }
+    post:
+      operationId: createRow
+      x-project-id: op-create-row
+      parameters: [ { $ref: '#/components/parameters/DbName' }, { $ref: '#/components/parameters/TableName' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Row' }
+            examples:
+              default: { value: { name: Ada } }
+      responses:
+        '201':
+          description: Created row identifier
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RowIdentifier' }
+              examples: { default: { value: { id: '2' } } }
+      default: { $ref: '#/components/responses/ApiError' }
+  /{dbName}/{tableName}/{id}:
+    get:
+      operationId: getRow
+      x-project-id: op-get-row
+      parameters: [ { $ref: '#/components/parameters/DbName' }, { $ref: '#/components/parameters/TableName' }, { $ref: '#/components/parameters/RowId' } ]
+      responses:
+        '200':
+          description: Dynamic row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Row' }
+              examples: { default: { value: { id: 1, name: Ada } } }
+      default: { $ref: '#/components/responses/ApiError' }
+    patch:
+      operationId: updateRow
+      x-project-id: op-update-row
+      parameters: [ { $ref: '#/components/parameters/DbName' }, { $ref: '#/components/parameters/TableName' }, { $ref: '#/components/parameters/RowId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Row' }
+            examples:
+              default: { value: { name: Grace } }
+      responses:
+        '200':
+          description: Updated row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Row' }
+              examples: { default: { value: { id: 1, name: Grace } } }
+      default: { $ref: '#/components/responses/ApiError' }
+    delete:
+      operationId: deleteRow
+      x-project-id: op-delete-row
+      parameters: [ { $ref: '#/components/parameters/DbName' }, { $ref: '#/components/parameters/TableName' }, { $ref: '#/components/parameters/RowId' } ]
+      responses:
+        '200':
+          description: Delete result
+          content:
+            application/json:
+              schema: { type: object, properties: { deleted: { type: integer } }, required: [deleted] }
+              examples: { default: { value: { deleted: 1 } } }
+components:
+  responses:
+    ApiError:
+      description: The request was rejected. See the HTTP status code for its category.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            default: { value: { exception: Objectiveweb\\DB\\Api\\ApiException, message: Request rejected } }
+  parameters:
+    DbName: { name: dbName, in: path, required: true, schema: { type: string }, example: app }
+    TableName: { name: tableName, in: path, required: true, schema: { type: string }, example: users }
+    RowId: { name: id, in: path, required: true, schema: { type: string }, example: '1' }
+  schemas:
+    ApiError:
+      x-project-id: schema-api-error
+      type: object
+      required: [exception, message]
+      properties: { exception: { type: string }, message: { type: string } }
+    Database:
+      x-project-id: schema-database
+      type: object
+      required: [name]
+      properties: { name: { type: string } }
+    TableSummary:
+      x-project-id: schema-table-summary
+      type: object
+      required: [name, writable]
+      properties: { name: { type: string }, primaryKey: { type: [string, 'null'] }, writable: { type: boolean } }
+    Column:
+      x-project-id: schema-column
+      type: object
+      required: [name, type, nullable, autoIncrement, primary, writable]
+      properties: { name: { type: string }, type: { type: string }, nullable: { type: boolean }, default: {}, autoIncrement: { type: boolean }, primary: { type: boolean }, writable: { type: boolean } }
+    TableSchema:
+      x-project-id: schema-table-schema
+      type: object
+      required: [name, writable, columns]
+      properties: { name: { type: string }, primaryKey: { type: [string, 'null'] }, writable: { type: boolean }, columns: { type: array, items: { $ref: '#/components/schemas/Column' } } }
+    Row:
+      x-project-id: schema-row
+      type: object
+      additionalProperties: true
+    RowIdentifier:
+      x-project-id: schema-row-identifier
+      type: object
+      additionalProperties: { type: string }
+    RowPage:
+      x-project-id: schema-row-page
+      type: object
+      required: [data, total, offset, limit]
+      properties: { data: { type: array, items: { $ref: '#/components/schemas/Row' } }, total: { type: integer }, offset: { type: integer }, limit: { type: integer } }

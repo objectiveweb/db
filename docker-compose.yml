@@ -48,3 +48,25 @@ services:
       PGSQL_TEST_PORT: "5432"
       PGSQL_TEST_DB: objectiveweb_test
     command: ["bash", "-lc", "sleep infinity"]
+
+  api:
+    image: registry.gitlab.com/bravado-hub/php:8.4-apache
+    depends_on:
+      - mysql
+    ports:
+      - ${PORT:-8087}:80
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/public
+      OPCACHE_ENABLE: 0
+      PHP_CLEAR_ENV: "no"
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_AUTH: off
+      SMTP_TLS: off
+      SMTP_FROM: no-reply@localhost
+      DB_API_DSN: mysql:dbname=objectiveweb_test;host=mysql;port=3306;charset=utf8mb4
+      DB_API_USERNAME: root
+      DB_API_PASSWORD: root
+      DB_API_DATABASE: app
+    volumes:
+      - .:/var/www

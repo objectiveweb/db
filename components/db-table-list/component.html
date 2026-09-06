@@ -1,0 +1,21 @@
+<title>Database Tables</title>
+<component-property name="dbName" type="string" required example="app"></component-property>
+
+<data-table
+  .resource=${api.listTables({ path: { dbName } })}
+  @open-table=${event => event.detail.resource.writable && navigate('db-table-workspace', { dbName, tableName: event.detail.resource.name })}
+>
+  <table>
+    <thead><tr><th>Table</th><th>Writable</th><th></th></tr></thead>
+    <tbody>
+      <template data-row>
+        <tr>
+          <td><data-label field="name"></data-label></td>
+          <td><data-label field="writable"></data-label></td>
+          <td><button type="button" data-action="open-table">Open</button></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</data-table>
+
