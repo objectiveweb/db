@@ -16,6 +16,11 @@ async function component(name) {
   return readFile(path.join('components', name, 'component.html'), 'utf8');
 }
 
+async function helperModule(name) {
+  const source = await readFile(path.join('components', name, 'component.js'), 'utf8');
+  return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+}
+
 test('DB exposes exactly six HTML-first components', async () => {
   const entries = await readdir('components', { withFileTypes:true });
   const directories = entries.filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
@@ -58,7 +63,7 @@ test('schema and rows components have distinct API responsibilities', async () =
 
 test('row actions resolve the selected identifier without ever navigating to undefined', async () => {
   const rows = await component('db-table-rows');
-  const helper = await import(new URL('../components/db-table-rows/component.js', import.meta.url));
+  const helper = await helperModule('db-table-rows');
   assert.match(rows, /resolveRowId\(event\.detail\.resource, primaryKey\)/);
   assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'code'), 'A');
   assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'missing'), '1');
@@ -67,8 +72,8 @@ test('row actions resolve the selected identifier without ever navigating to und
 });
 
 test('row detail and editor reject literal undefined/null ids', async () => {
-  const details = await import(new URL('../components/db-row-details/component.js', import.meta.url));
-  const editor = await import(new URL('../components/db-row-editor/component.js', import.meta.url));
+  const details = await helperModule('db-row-details');
+  const editor = await helperModule('db-row-editor');
   for (const helper of [details, editor]) {
     assert.equal(helper.normalizeRowId(undefined), '');
     assert.equal(helper.normalizeRowId('undefined'), '');
