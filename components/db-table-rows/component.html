@@ -9,8 +9,8 @@
 <data-table
   .resource=${Promise.resolve(api.listRows({ path: { dbName, tableName } })).then(page => page?.data || [])}
   .actions=${[
-    primaryKey ? { name: 'view-row', label: 'View' } : null,
-    writable && primaryKey ? { name: 'edit-row', label: 'Edit' } : null
+    { name: 'view-row', label: 'View' },
+    writable ? { name: 'edit-row', label: 'Edit' } : null
   ].filter(Boolean)}
   @view-row=${event => {
     const id = resolveRowId(event.detail.resource, primaryKey);
