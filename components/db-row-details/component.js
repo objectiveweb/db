@@ -1,3 +1,10 @@
+export function normalizeRowId(value) {
+  const id = value == null ? '' : String(value).trim();
+  if (!id) return '';
+  const lowered = id.toLowerCase();
+  return lowered === 'undefined' || lowered === 'null' ? '' : id;
+}
+
 export function rowFields(row) {
   return Object.entries(row || {}).map(([field, value]) => ({
     field,
