@@ -66,12 +66,25 @@ test('row actions resolve the selected identifier without ever navigating to und
   assert.equal(helper.resolveRowId({}, 'id'), '');
 });
 
+test('row detail and editor reject literal undefined/null ids', async () => {
+  const details = await import(new URL('../components/db-row-details/component.js', import.meta.url));
+  const editor = await import(new URL('../components/db-row-editor/component.js', import.meta.url));
+  for (const helper of [details, editor]) {
+    assert.equal(helper.normalizeRowId(undefined), '');
+    assert.equal(helper.normalizeRowId('undefined'), '');
+    assert.equal(helper.normalizeRowId('null'), '');
+    assert.equal(helper.normalizeRowId(' 2 '), '2');
+  }
+});
+
 test('row details loads one row and renders field-value records', async () => {
   const details = await component('db-row-details');
   const helper = await readFile('components/db-row-details/component.js', 'utf8');
   assert.match(details, /api\.getRow/);
   assert.doesNotMatch(details, /api\.getTableSchema/);
   assert.match(details, /rowFields\(row\)/);
+  assert.match(details, /No record loaded\./);
+  assert.match(details, /normalizeRowId\(id\)/);
   assert.match(helper, /Object\.entries\(row \|\| \{\}\)/);
 });
 
@@ -81,6 +94,7 @@ test('row editor stays empty until navigation supplies an id and saves a dynamic
   assert.match(editor, /name="id" type="string" default=""/);
   assert.doesNotMatch(editor, /name="id"[^>]*example=/);
   assert.match(editor, /No record loaded\./);
+  assert.match(editor, /normalizeRowId\(id\)/);
   assert.match(editor, /api\.getTableSchema/);
   assert.match(editor, /api\.getRow/);
   assert.match(editor, /api\.updateRow/);
