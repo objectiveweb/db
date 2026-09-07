@@ -3,7 +3,6 @@
 <component-property name="tableName" type="string" required example="users"></component-property>
 <component-property name="primaryKey" type="string" example="id"></component-property>
 <component-property name="writable" type="boolean" example="true"></component-property>
-<component-property name="refresh" type="string" default=""></component-property>
 
 <header class="component-heading"><strong>${dbName}.${tableName}</strong></header>
 <data-table
@@ -22,5 +21,5 @@
   }}
 ></data-table>
 <div class="toolbar">
-  <button type="button" @click=${() => navigate('db-table-rows', { dbName, tableName, primaryKey, writable, refresh: String(Date.now()) })}>Refresh</button>
+  <button type="button" @click=${() => dataSource.invalidate()}>Refresh</button>
 </div>

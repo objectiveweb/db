@@ -20,15 +20,6 @@ export function rowBody(fields) {
   return Object.fromEntries((fields || []).map(field => [field.name, coerceValue(field.value, field.type)]));
 }
 
-export function invalidateRow(dbName, tableName, id) {
-  window.dispatchEvent(new CustomEvent('metaproject-data-invalidate', {
-    detail: {
-      keys: [`db:${dbName}:${tableName}:row:${id}`, `db:${dbName}:${tableName}:rows`],
-      broadcast: true
-    }
-  }));
-}
-
 function coerceValue(value, type) {
   const normalized = String(type || '').toLowerCase();
   if (normalized === 'boolean') {

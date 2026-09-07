@@ -15,10 +15,7 @@ ${normalizeRowId(id) ? html`
     @save-row=${event => Promise.resolve(api.updateRow({
       path: { dbName, tableName, id: normalizeRowId(id) },
       body: rowBody(event.detail.resource || [])
-    })).then(() => {
-      invalidateRow(dbName, tableName, normalizeRowId(id));
-      navigate('db-table-rows', { dbName, tableName, primaryKey, writable, refresh: String(Date.now()) });
-    })}
+    })).then(() => navigate('db-table-rows', { dbName, tableName, primaryKey, writable }))}
     @cancel-row=${() => navigate('db-row-details', { dbName, tableName, id: normalizeRowId(id), primaryKey, writable })}
   >
     <form class="row-form">

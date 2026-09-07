@@ -31,9 +31,7 @@ test('DB exposes exactly six HTML-first components', async () => {
 test('DB components never nest another DB component', async () => {
   for (const name of expected) {
     const source = await component(name);
-    for (const other of expected) {
-      assert.doesNotMatch(source, new RegExp(`<${other}\\b`), `${name} must not embed <${other}>`);
-    }
+    for (const other of expected) assert.doesNotMatch(source, new RegExp(`<${other}\\b`), `${name} must not embed <${other}>`);
   }
 });
 
@@ -59,6 +57,8 @@ test('schema and rows components have distinct API responsibilities', async () =
   assert.match(rows, /\.actions=\$\{/);
   assert.match(rows, /navigate\('db-row-details'/);
   assert.match(rows, /navigate\('db-row-editor'/);
+  assert.match(rows, /dataSource\.invalidate\(\)/);
+  assert.doesNotMatch(rows, /name="refresh"/);
 });
 
 test('row actions resolve the selected identifier without ever navigating to undefined', async () => {
@@ -93,7 +93,7 @@ test('row details loads one row and renders field-value records', async () => {
   assert.match(helper, /Object\.entries\(row \|\| \{\}\)/);
 });
 
-test('row editor stays empty until navigation supplies an id and saves a dynamic form', async () => {
+test('row editor relies on DataSource mutation invalidation instead of custom cache events', async () => {
   const editor = await component('db-row-editor');
   const helper = await readFile('components/db-row-editor/component.js', 'utf8');
   assert.match(editor, /name="id" type="string" default=""/);
@@ -105,7 +105,8 @@ test('row editor stays empty until navigation supplies an id and saves a dynamic
   assert.match(editor, /api\.updateRow/);
   assert.match(editor, /form-input field="value"/);
   assert.match(helper, /filter\(column => column\.writable\)/);
-  assert.match(helper, /metaproject-data-invalidate/);
+  assert.doesNotMatch(helper, /metaproject-data-invalidate/);
+  assert.doesNotMatch(editor, /refresh: String\(Date\.now\(\)\)/);
 });
 
 test('Mock and HTTP API results are normalized through Promise.resolve', async () => {
