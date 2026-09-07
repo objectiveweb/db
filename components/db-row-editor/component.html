@@ -5,21 +5,21 @@
 <component-property name="primaryKey" type="string" example="id"></component-property>
 <component-property name="writable" type="boolean" example="true"></component-property>
 
-${id ? html`
-  <header class="component-heading"><strong>Edit ${dbName}.${tableName} #${id}</strong></header>
+${normalizeRowId(id) ? html`
+  <header class="component-heading"><strong>Edit ${dbName}.${tableName} #${normalizeRowId(id)}</strong></header>
   <data-table
     .resource=${Promise.all([
       Promise.resolve(api.getTableSchema({ path: { dbName, tableName } })),
-      Promise.resolve(api.getRow({ path: { dbName, tableName, id } }))
+      Promise.resolve(api.getRow({ path: { dbName, tableName, id: normalizeRowId(id) } }))
     ]).then(([schema, row]) => editableFields(schema, row))}
     @save-row=${event => Promise.resolve(api.updateRow({
-      path: { dbName, tableName, id },
+      path: { dbName, tableName, id: normalizeRowId(id) },
       body: rowBody(event.detail.resource || [])
     })).then(() => {
-      invalidateRow(dbName, tableName, id);
+      invalidateRow(dbName, tableName, normalizeRowId(id));
       navigate('db-table-rows', { dbName, tableName, primaryKey, writable, refresh: String(Date.now()) });
     })}
-    @cancel-row=${() => navigate('db-row-details', { dbName, tableName, id, primaryKey, writable })}
+    @cancel-row=${() => navigate('db-row-details', { dbName, tableName, id: normalizeRowId(id), primaryKey, writable })}
   >
     <form class="row-form">
       <table>
