@@ -56,6 +56,16 @@ test('schema and rows components have distinct API responsibilities', async () =
   assert.match(rows, /navigate\('db-row-editor'/);
 });
 
+test('row actions resolve the selected identifier without ever navigating to undefined', async () => {
+  const rows = await component('db-table-rows');
+  const helper = await import(new URL('../components/db-table-rows/component.js', import.meta.url));
+  assert.match(rows, /resolveRowId\(event\.detail\.resource, primaryKey\)/);
+  assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'code'), 'A');
+  assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'missing'), '1');
+  assert.equal(helper.resolveRowId({ id:1 }, 'undefined'), '1');
+  assert.equal(helper.resolveRowId({}, 'id'), '');
+});
+
 test('row details loads one row and renders field-value records', async () => {
   const details = await component('db-row-details');
   const helper = await readFile('components/db-row-details/component.js', 'utf8');
