@@ -12,20 +12,14 @@
     primaryKey ? { name: 'view-row', label: 'View' } : null,
     writable && primaryKey ? { name: 'edit-row', label: 'Edit' } : null
   ].filter(Boolean)}
-  @view-row=${event => primaryKey && navigate('db-row-details', {
-    dbName,
-    tableName,
-    id: String(event.detail.resource[primaryKey]),
-    primaryKey,
-    writable
-  })}
-  @edit-row=${event => primaryKey && navigate('db-row-editor', {
-    dbName,
-    tableName,
-    id: String(event.detail.resource[primaryKey]),
-    primaryKey,
-    writable
-  })}
+  @view-row=${event => {
+    const id = resolveRowId(event.detail.resource, primaryKey);
+    if (id) navigate('db-row-details', { dbName, tableName, id, primaryKey, writable });
+  }}
+  @edit-row=${event => {
+    const id = resolveRowId(event.detail.resource, primaryKey);
+    if (id) navigate('db-row-editor', { dbName, tableName, id, primaryKey, writable });
+  }}
 ></data-table>
 <div class="toolbar">
   <button type="button" @click=${() => navigate('db-table-rows', { dbName, tableName, primaryKey, writable, refresh: String(Date.now()) })}>Refresh</button>
