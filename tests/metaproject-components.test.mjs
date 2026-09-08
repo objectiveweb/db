@@ -85,11 +85,11 @@ test('row editor is one row query plus generated data-form plus direct update op
   const source = await component('db-row-editor');
   assert.match(source, /name="id" type="string" required example="1"/);
   assert.match(source, /request="getRow"/);
-  assert.match(source, /data-operation="updateRow"/);
+  assert.match(source, /data-operation=updateRow/);
   assert.match(source, /db-name=\$\{dbName\}/);
   assert.match(source, /table-name=\$\{tableName\}/);
   assert.match(source, /id=\$\{id\}/);
-  assert.match(source, /<data-form>[\s\S]*<button data-operation="updateRow">Save<\/button>[\s\S]*<\/data-form>/);
+  assert.match(source, /<data-form>[\s\S]*<button data-operation=updateRow>Save<\/button>[\s\S]*<\/data-form>/);
   assert.doesNotMatch(source, /getTableSchema|\bsave=/);
   assert.doesNotMatch(source, /form-input|data-table|data-action/);
   assert.doesNotMatch(source, /navigate\(/);
