@@ -15,6 +15,10 @@ async function component(name) {
   return readFile(path.join('components', name, 'component.html'), 'utf8');
 }
 
+async function componentStyle(name) {
+  return readFile(path.join('components', name, 'style.css'), 'utf8');
+}
+
 test('DB exposes exactly five reusable HTML-first components', async () => {
   const entries = await readdir('components', { withFileTypes:true });
   const directories = entries.filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
@@ -34,6 +38,14 @@ test('DB components use declarative data primitives and keep composition outside
     assert.doesNotMatch(source, /\bsave=/, `${name} must not map mutations through data-source save=`);
     assert.doesNotMatch(source, /\.actions\s*=/, `${name} must author table actions as HTML`);
     assert.doesNotMatch(source, /navigate\(/, `${name} must leave Canvas composition outside the component`);
+  }
+});
+
+test('DB leaves generic table presentation to Core data-table', async () => {
+  for (const name of ['db-list','db-table-list','db-table-schema','db-table-rows']) {
+    const css=await componentStyle(name);
+    assert.doesNotMatch(css, /(?:^|})\s*table\s*\{/i, `${name} must not redefine the generated table`);
+    assert.doesNotMatch(css, /(?:^|})\s*th(?:\s*,\s*td)?\s*\{/i, `${name} must not redefine generic data-table cells`);
   }
 });
 
