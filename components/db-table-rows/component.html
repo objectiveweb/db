@@ -7,19 +7,9 @@
 <header class="component-heading"><strong>${dbName}.${tableName}</strong></header>
 <data-table
   .resource=${Promise.resolve(api.listRows({ path: { dbName, tableName } })).then(page => page?.data || [])}
-  .actions=${[
-    { name: 'view-row', label: 'View' },
-    writable ? { name: 'edit-row', label: 'Edit' } : null
-  ].filter(Boolean)}
-  @view-row=${event => {
-    const id = resolveRowId(event.detail.resource, primaryKey);
-    if (id) navigate('db-row-details', { dbName, tableName, id, primaryKey, writable });
-  }}
+  .actions=${writable ? [{ name: 'edit-row', label: 'Edit' }] : []}
   @edit-row=${event => {
     const id = resolveRowId(event.detail.resource, primaryKey);
-    if (id) navigate('db-row-editor', { dbName, tableName, id, primaryKey, writable });
+    if (id) navigate('db-row-editor', { dbName, tableName, id });
   }}
 ></data-table>
-<div class="toolbar">
-  <button type="button" @click=${() => dataSource.invalidate()}>Refresh</button>
-</div>

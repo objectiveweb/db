@@ -25,11 +25,3 @@
     </tbody>
   </table>
 </data-table>
-<div class="toolbar">
-  <button type="button" @click=${() => Promise.resolve(api.getTableSchema({ path: { dbName, tableName } })).then(schema => navigate('db-table-rows', {
-    dbName,
-    tableName,
-    primaryKey: schema?.primaryKey || '',
-    writable: Boolean(schema?.writable)
-  }))}>Rows</button>
-</div>

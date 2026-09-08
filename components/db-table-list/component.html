@@ -1,16 +1,21 @@
-<title>Table List</title>
+<title>Database Tables</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 
 <header class="component-heading"><strong>Database: ${dbName}</strong></header>
 <data-table
   .resource=${Promise.resolve(api.listTables({ path: { dbName } }))}
-  @open-schema=${event => navigate('db-table-schema', { dbName, tableName: event.detail.resource.name })}
-  @open-rows=${event => navigate('db-table-rows', {
-    dbName,
-    tableName: event.detail.resource.name,
-    primaryKey: event.detail.resource.primaryKey || '',
-    writable: Boolean(event.detail.resource.writable)
-  })}
+  @open-table=${event => {
+    const table = event.detail.resource || {};
+    const tableName = table.name || '';
+    if (!tableName) return;
+    navigate('db-table-schema', { dbName, tableName });
+    navigate('db-table-rows', {
+      dbName,
+      tableName,
+      primaryKey: table.primaryKey || '',
+      writable: Boolean(table.writable)
+    });
+  }}
 >
   <table>
     <thead><tr><th>Table</th><th>Primary key</th><th>Writable</th><th></th></tr></thead>
@@ -20,10 +25,7 @@
           <td><data-label field="name"></data-label></td>
           <td><data-label field="primaryKey"></data-label></td>
           <td><data-label field="writable"></data-label></td>
-          <td class="actions">
-            <button type="button" data-action="open-schema">Schema</button>
-            <button type="button" data-action="open-rows">Rows</button>
-          </td>
+          <td class="actions"><button type="button" data-action="open-table">Open</button></td>
         </tr>
       </template>
     </tbody>
