@@ -70,7 +70,7 @@ canvas:
               properties:
                 dbName: { from: source.dbName }
                 tableName: { from: source.tableName }
-                id: { from: event.resource[source.primaryKey] }
+                id: { from: "event.resource[source.primaryKey]" }
       - resource: { type: operation, id: op-list-rows }
         x: 1580
         y: 160
