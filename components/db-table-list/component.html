@@ -3,7 +3,6 @@
 
 <data-source request="listTables" db-name=${dbName}>
   <data-table
-    .actions=${[{ name: 'open-table', label: 'Open' }]}
     @open-table=${event => {
       const table = event.detail.resource || {};
       const tableName = table.name || '';
@@ -16,5 +15,7 @@
         writable: Boolean(table.writable)
       });
     }}
-  ></data-table>
+  >
+    <button data-action="open-table">Open</button>
+  </data-table>
 </data-source>
