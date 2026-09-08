@@ -3,25 +3,11 @@
 <component-property name="tableName" type="string" required example="users"></component-property>
 
 <header class="component-heading"><strong>${dbName}.${tableName}</strong></header>
-<data-table
-  .resource=${Promise.resolve(api.getTableSchema({ path: { dbName, tableName } })).then(schema => schema?.columns || [])}
+<data-source
+  request="getTableSchema"
+  db-name=${dbName}
+  table-name=${tableName}
+  select="columns"
 >
-  <table>
-    <thead>
-      <tr><th>Column</th><th>Type</th><th>Nullable</th><th>Default</th><th>Auto</th><th>Primary</th><th>Writable</th></tr>
-    </thead>
-    <tbody>
-      <template data-row>
-        <tr>
-          <td><data-label field="name"></data-label></td>
-          <td><data-label field="type"></data-label></td>
-          <td><data-label field="nullable"></data-label></td>
-          <td><data-label field="default"></data-label></td>
-          <td><data-label field="autoIncrement"></data-label></td>
-          <td><data-label field="primary"></data-label></td>
-          <td><data-label field="writable"></data-label></td>
-        </tr>
-      </template>
-    </tbody>
-  </table>
-</data-table>
+  <data-table></data-table>
+</data-source>

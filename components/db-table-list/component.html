@@ -2,32 +2,20 @@
 <component-property name="dbName" type="string" required example="app"></component-property>
 
 <header class="component-heading"><strong>Database: ${dbName}</strong></header>
-<data-table
-  .resource=${Promise.resolve(api.listTables({ path: { dbName } }))}
-  @open-table=${event => {
-    const table = event.detail.resource || {};
-    const tableName = table.name || '';
-    if (!tableName) return;
-    navigate('db-table-schema', { dbName, tableName });
-    navigate('db-table-rows', {
-      dbName,
-      tableName,
-      primaryKey: table.primaryKey || '',
-      writable: Boolean(table.writable)
-    });
-  }}
->
-  <table>
-    <thead><tr><th>Table</th><th>Primary key</th><th>Writable</th><th></th></tr></thead>
-    <tbody>
-      <template data-row>
-        <tr>
-          <td><data-label field="name"></data-label></td>
-          <td><data-label field="primaryKey"></data-label></td>
-          <td><data-label field="writable"></data-label></td>
-          <td class="actions"><button type="button" data-action="open-table">Open</button></td>
-        </tr>
-      </template>
-    </tbody>
-  </table>
-</data-table>
+<data-source request="listTables" db-name=${dbName}>
+  <data-table
+    .actions=${[{ name: 'open-table', label: 'Open' }]}
+    @open-table=${event => {
+      const table = event.detail.resource || {};
+      const tableName = table.name || '';
+      if (!tableName) return;
+      navigate('db-table-schema', { dbName, tableName });
+      navigate('db-table-rows', {
+        dbName,
+        tableName,
+        primaryKey: table.primaryKey || '',
+        writable: Boolean(table.writable)
+      });
+    }}
+  ></data-table>
+</data-source>

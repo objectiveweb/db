@@ -1,34 +1,15 @@
 <title>Edit Row</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 <component-property name="tableName" type="string" required example="users"></component-property>
-<component-property name="id" type="string" default=""></component-property>
+<component-property name="id" type="string" required example="1"></component-property>
 
-${normalizeRowId(id) ? html`
-  <header class="component-heading"><strong>Edit ${dbName}.${tableName} #${normalizeRowId(id)}</strong></header>
-  <data-table
-    .resource=${Promise.all([
-      Promise.resolve(api.getTableSchema({ path: { dbName, tableName } })),
-      Promise.resolve(api.getRow({ path: { dbName, tableName, id: normalizeRowId(id) } }))
-    ]).then(([schema, row]) => editableFields(schema, row))}
-    @save-row=${event => api.updateRow({
-      path: { dbName, tableName, id: normalizeRowId(id) },
-      body: rowBody(event.detail.resource || [])
-    })}
-  >
-    <form class="row-form">
-      <table>
-        <tbody>
-          <template data-row>
-            <tr>
-              <th><data-label field="label"></data-label></th>
-              <td><form-input field="value"></form-input></td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
-      <div class="toolbar">
-        <button type="button" data-action="save-row" data-validate>Save</button>
-      </div>
-    </form>
-  </data-table>
-` : html`<div class="empty-state" role="status">Select a row to edit.</div>`}
+<header class="component-heading"><strong>Edit ${dbName}.${tableName} #${id}</strong></header>
+<data-source
+  request="getRow"
+  save="updateRow"
+  db-name=${dbName}
+  table-name=${tableName}
+  id=${id}
+>
+  <data-form></data-form>
+</data-source>
