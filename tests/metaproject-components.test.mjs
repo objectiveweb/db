@@ -75,7 +75,7 @@ test('Canvas owns DB open/edit composition and property mapping', async () => {
   assert.match(source, /tableName: \{ from: event\.resource\.name \}/);
   assert.match(source, /primaryKey: \{ from: event\.resource\.primaryKey, default: id \}/);
   assert.match(source, /ref: db-table-rows[\s\S]*?edit:[\s\S]*?target: db-row-editor/);
-  assert.match(source, /id: \{ from: event\.resource\[source\.primaryKey\] \}/);
+  assert.match(source, /id: \{ from: "event\.resource\[source\.primaryKey\]" \}/);
 });
 
 test('row editor is one row query plus generated data-form plus direct update operation', async () => {
