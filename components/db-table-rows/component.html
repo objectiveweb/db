@@ -1,10 +1,9 @@
-<title>Table Rows</title>
+<title>Rows — ${dbName}.${tableName}</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 <component-property name="tableName" type="string" required example="users"></component-property>
 <component-property name="primaryKey" type="string" example="id"></component-property>
 <component-property name="writable" type="boolean" example="true"></component-property>
 
-<header class="component-heading"><strong>${dbName}.${tableName}</strong></header>
 <data-source
   request="listRows"
   db-name=${dbName}
