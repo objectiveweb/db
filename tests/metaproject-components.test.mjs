@@ -34,6 +34,7 @@ test('DB components use declarative data-source requests and never call api dire
     assert.match(source, /<data-source\b/i, `${name} must declare its own query`);
     assert.doesNotMatch(source, /\bapi\./, `${name} must not call api.* directly`);
     assert.doesNotMatch(source, /Promise\.(?:resolve|all)/, `${name} must not manage request promises`);
+    assert.doesNotMatch(source, /\bsave=/, `${name} must not map mutations through data-source save=`);
   }
 });
 
@@ -80,16 +81,16 @@ test('rows panel selects page.data and generated table edits writable rows', asy
   assert.equal(helper.resolveRowId({}, 'id'), '');
 });
 
-test('row editor is one row query plus generated data-form plus update mutation', async () => {
+test('row editor is one row query plus generated data-form plus direct update operation', async () => {
   const source = await component('db-row-editor');
   assert.match(source, /name="id" type="string" required example="1"/);
   assert.match(source, /request="getRow"/);
-  assert.match(source, /save="updateRow"/);
+  assert.match(source, /data-operation="updateRow"/);
   assert.match(source, /db-name=\$\{dbName\}/);
   assert.match(source, /table-name=\$\{tableName\}/);
   assert.match(source, /id=\$\{id\}/);
-  assert.match(source, /<data-form><\/data-form>/);
-  assert.doesNotMatch(source, /getTableSchema/);
+  assert.match(source, /<data-form>[\s\S]*<button data-operation="updateRow">Save<\/button>[\s\S]*<\/data-form>/);
+  assert.doesNotMatch(source, /getTableSchema|\bsave=/);
   assert.doesNotMatch(source, /form-input|data-table|data-action/);
   assert.doesNotMatch(source, /navigate\(/);
 });
