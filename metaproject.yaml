@@ -14,6 +14,11 @@ canvas:
         y: -360
         width: 360
         height: 320
+        on:
+          open:
+            - target: db-table-list
+              properties:
+                dbName: { from: event.resource.name }
       - resource: { type: operation, id: op-list-databases }
         x: -600
         y: 40
@@ -25,6 +30,18 @@ canvas:
         y: -360
         width: 520
         height: 420
+        on:
+          open:
+            - target: db-table-schema
+              properties:
+                dbName: { from: source.dbName }
+                tableName: { from: event.resource.name }
+            - target: db-table-rows
+              properties:
+                dbName: { from: source.dbName }
+                tableName: { from: event.resource.name }
+                primaryKey: { from: event.resource.primaryKey, default: id }
+                writable: { from: event.resource.writable, default: false }
       - resource: { type: operation, id: op-list-tables }
         x: -60
         y: 140
@@ -47,6 +64,13 @@ canvas:
         y: -440
         width: 760
         height: 520
+        on:
+          edit:
+            - target: db-row-editor
+              properties:
+                dbName: { from: source.dbName }
+                tableName: { from: source.tableName }
+                id: { from: event.resource[source.primaryKey] }
       - resource: { type: operation, id: op-list-rows }
         x: 1580
         y: 160
