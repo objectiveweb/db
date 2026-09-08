@@ -2,20 +2,7 @@
 <component-property name="dbName" type="string" required example="app"></component-property>
 
 <data-source request="listTables" db-name=${dbName}>
-  <data-table
-    @open-table=${event => {
-      const table = event.detail.resource || {};
-      const tableName = table.name || '';
-      if (!tableName) return;
-      navigate('db-table-schema', { dbName, tableName });
-      navigate('db-table-rows', {
-        dbName,
-        tableName,
-        primaryKey: table.primaryKey || '',
-        writable: Boolean(table.writable)
-      });
-    }}
-  >
-    <button data-action="open-table">Open</button>
+  <data-table>
+    <button data-action="open">Open</button>
   </data-table>
 </data-source>
