@@ -27,11 +27,13 @@ test('DB exposes exactly five reusable HTML-first components', async () => {
   assert.equal(entries.some(entry => entry.isFile() && /\.(?:js|ts)$/.test(entry.name)), false);
 });
 
-test('DB components use declarative data-source requests and never call api directly', async () => {
+test('DB components use declarative data-source requests and keep context in title metadata', async () => {
   for (const name of expected) {
     const source = await component(name);
     for (const other of expected) assert.doesNotMatch(source, new RegExp(`<${other}\\b`), `${name} must not embed <${other}>`);
     assert.match(source, /<data-source\b/i, `${name} must declare its own query`);
+    assert.match(source, /<title>[^<]+<\/title>/, `${name} must declare title metadata`);
+    assert.doesNotMatch(source, /<header\b|component-heading/, `${name} must not render duplicate chrome headings`);
     assert.doesNotMatch(source, /\bapi\./, `${name} must not call api.* directly`);
     assert.doesNotMatch(source, /Promise\.(?:resolve|all)/, `${name} must not manage request promises`);
     assert.doesNotMatch(source, /\bsave=/, `${name} must not map mutations through data-source save=`);
@@ -48,6 +50,7 @@ test('database list is listDatabases + generated table + Open navigation', async
 
 test('table Open updates both schema and rows panels with the same selected table', async () => {
   const source = await component('db-table-list');
+  assert.match(source, /<title>Tables — \$\{dbName\}<\/title>/);
   assert.match(source, /request="listTables"/);
   assert.match(source, /db-name=\$\{dbName\}/);
   assert.match(source, /name: 'open-table'/);
@@ -59,6 +62,7 @@ test('table Open updates both schema and rows panels with the same selected tabl
 
 test('schema panel selects columns and lets data-table infer the table', async () => {
   const source = await component('db-table-schema');
+  assert.match(source, /<title>Schema — \$\{dbName\}\.\$\{tableName\}<\/title>/);
   assert.match(source, /request="getTableSchema"/);
   assert.match(source, /select="columns"/);
   assert.match(source, /db-name=\$\{dbName\}/);
@@ -71,6 +75,7 @@ test('schema panel selects columns and lets data-table infer the table', async (
 test('rows panel selects page.data and generated table edits writable rows', async () => {
   const source = await component('db-table-rows');
   const helper = await helperModule('db-table-rows');
+  assert.match(source, /<title>Rows — \$\{dbName\}\.\$\{tableName\}<\/title>/);
   assert.match(source, /request="listRows"/);
   assert.match(source, /select="data"/);
   assert.match(source, /\.actions=\$\{writable/);
@@ -83,6 +88,7 @@ test('rows panel selects page.data and generated table edits writable rows', asy
 
 test('row editor is one row query plus generated data-form plus direct update operation', async () => {
   const source = await component('db-row-editor');
+  assert.match(source, /<title>Edit — \$\{dbName\}\.\$\{tableName\} #\$\{id\}<\/title>/);
   assert.match(source, /name="id" type="string" required example="1"/);
   assert.match(source, /request="getRow"/);
   assert.match(source, /data-operation=updateRow/);
