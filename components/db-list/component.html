@@ -2,7 +2,8 @@
 
 <data-source request="listDatabases">
   <data-table
-    .actions=${[{ name: 'open-database', label: 'Open' }]}
     @open-database=${event => navigate('db-table-list', { dbName: event.detail.resource.name })}
-  ></data-table>
+  >
+    <button data-action="open-database">Open</button>
+  </data-table>
 </data-source>
