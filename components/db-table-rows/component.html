@@ -10,12 +10,7 @@
   table-name=${tableName}
   select="data"
 >
-  <data-table
-    @edit-row=${event => {
-      const id = resolveRowId(event.detail.resource, primaryKey);
-      if (id) navigate('db-row-editor', { dbName, tableName, id });
-    }}
-  >
-    ${writable ? html`<button data-action="edit-row">Edit</button>` : nothing}
+  <data-table>
+    ${writable ? html`<button data-action="edit">Edit</button>` : nothing}
   </data-table>
 </data-source>
