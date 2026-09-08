@@ -27,7 +27,7 @@ test('DB exposes exactly five reusable HTML-first components', async () => {
   assert.equal(entries.some(entry => entry.isFile() && /\.(?:js|ts)$/.test(entry.name)), false);
 });
 
-test('DB components use declarative data-source requests and keep context in title metadata', async () => {
+test('DB components use declarative data primitives and keep context in title metadata', async () => {
   for (const name of expected) {
     const source = await component(name);
     for (const other of expected) assert.doesNotMatch(source, new RegExp(`<${other}\\b`), `${name} must not embed <${other}>`);
@@ -37,14 +37,15 @@ test('DB components use declarative data-source requests and keep context in tit
     assert.doesNotMatch(source, /\bapi\./, `${name} must not call api.* directly`);
     assert.doesNotMatch(source, /Promise\.(?:resolve|all)/, `${name} must not manage request promises`);
     assert.doesNotMatch(source, /\bsave=/, `${name} must not map mutations through data-source save=`);
+    assert.doesNotMatch(source, /\.actions\s*=/, `${name} must author table actions as HTML`);
   }
 });
 
-test('database list is listDatabases + generated table + Open navigation', async () => {
+test('database list is listDatabases + generated table + authored Open action', async () => {
   const source = await component('db-list');
   assert.match(source, /<data-source request="listDatabases">/);
   assert.match(source, /<data-table/);
-  assert.match(source, /name: 'open-database'/);
+  assert.match(source, /<button data-action="open-database">Open<\/button>/);
   assert.match(source, /navigate\('db-table-list', \{ dbName: event\.detail\.resource\.name \}\)/);
 });
 
@@ -53,7 +54,7 @@ test('table Open updates both schema and rows panels with the same selected tabl
   assert.match(source, /<title>Tables — \$\{dbName\}<\/title>/);
   assert.match(source, /request="listTables"/);
   assert.match(source, /db-name=\$\{dbName\}/);
-  assert.match(source, /name: 'open-table'/);
+  assert.match(source, /<button data-action="open-table">Open<\/button>/);
   assert.match(source, /navigate\('db-table-schema', \{ dbName, tableName \}\)/);
   assert.match(source, /navigate\('db-table-rows'/);
   assert.match(source, /primaryKey: table\.primaryKey \|\| ''/);
@@ -72,13 +73,13 @@ test('schema panel selects columns and lets data-table infer the table', async (
   assert.doesNotMatch(source, /navigate\(/);
 });
 
-test('rows panel selects page.data and generated table edits writable rows', async () => {
+test('rows panel selects page.data and uses authored Edit action for writable rows', async () => {
   const source = await component('db-table-rows');
   const helper = await helperModule('db-table-rows');
   assert.match(source, /<title>Rows — \$\{dbName\}\.\$\{tableName\}<\/title>/);
   assert.match(source, /request="listRows"/);
   assert.match(source, /select="data"/);
-  assert.match(source, /\.actions=\$\{writable/);
+  assert.match(source, /\$\{writable \? html`<button data-action="edit-row">Edit<\/button>` : nothing\}/);
   assert.match(source, /resolveRowId\(event\.detail\.resource, primaryKey\)/);
   assert.match(source, /navigate\('db-row-editor', \{ dbName, tableName, id \}\)/);
   assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'code'), 'A');
