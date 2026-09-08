@@ -1,7 +1,6 @@
-<title>Database Tables</title>
+<title>Tables — ${dbName}</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 
-<header class="component-heading"><strong>Database: ${dbName}</strong></header>
 <data-source request="listTables" db-name=${dbName}>
   <data-table
     .actions=${[{ name: 'open-table', label: 'Open' }]}
