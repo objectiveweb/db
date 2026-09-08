@@ -1,9 +1,8 @@
-<title>Edit Row</title>
+<title>Edit — ${dbName}.${tableName} #${id}</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 <component-property name="tableName" type="string" required example="users"></component-property>
 <component-property name="id" type="string" required example="1"></component-property>
 
-<header class="component-heading"><strong>Edit ${dbName}.${tableName} #${id}</strong></header>
 <data-source
   request="getRow"
   db-name=${dbName}
