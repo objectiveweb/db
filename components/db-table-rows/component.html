@@ -11,10 +11,11 @@
   select="data"
 >
   <data-table
-    .actions=${writable ? [{ name: 'edit-row', label: 'Edit' }] : []}
     @edit-row=${event => {
       const id = resolveRowId(event.detail.resource, primaryKey);
       if (id) navigate('db-row-editor', { dbName, tableName, id });
     }}
-  ></data-table>
+  >
+    ${writable ? html`<button data-action="edit-row">Edit</button>` : nothing}
+  </data-table>
 </data-source>
