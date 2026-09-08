@@ -1,8 +1,7 @@
-<title>Table Schema</title>
+<title>Schema — ${dbName}.${tableName}</title>
 <component-property name="dbName" type="string" required example="app"></component-property>
 <component-property name="tableName" type="string" required example="users"></component-property>
 
-<header class="component-heading"><strong>${dbName}.${tableName}</strong></header>
 <data-source
   request="getTableSchema"
   db-name=${dbName}
