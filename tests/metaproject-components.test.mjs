@@ -15,11 +15,6 @@ async function component(name) {
   return readFile(path.join('components', name, 'component.html'), 'utf8');
 }
 
-async function helperModule(name) {
-  const source = await readFile(path.join('components', name, 'component.js'), 'utf8');
-  return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
-}
-
 test('DB exposes exactly five reusable HTML-first components', async () => {
   const entries = await readdir('components', { withFileTypes:true });
   const directories = entries.filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
@@ -27,7 +22,7 @@ test('DB exposes exactly five reusable HTML-first components', async () => {
   assert.equal(entries.some(entry => entry.isFile() && /\.(?:js|ts)$/.test(entry.name)), false);
 });
 
-test('DB components use declarative data primitives and keep context in title metadata', async () => {
+test('DB components use declarative data primitives and keep composition outside component code', async () => {
   for (const name of expected) {
     const source = await component(name);
     for (const other of expected) assert.doesNotMatch(source, new RegExp(`<${other}\\b`), `${name} must not embed <${other}>`);
@@ -38,27 +33,19 @@ test('DB components use declarative data primitives and keep context in title me
     assert.doesNotMatch(source, /Promise\.(?:resolve|all)/, `${name} must not manage request promises`);
     assert.doesNotMatch(source, /\bsave=/, `${name} must not map mutations through data-source save=`);
     assert.doesNotMatch(source, /\.actions\s*=/, `${name} must author table actions as HTML`);
+    assert.doesNotMatch(source, /navigate\(/, `${name} must leave Canvas composition outside the component`);
   }
 });
 
-test('database list is listDatabases + generated table + authored Open action', async () => {
-  const source = await component('db-list');
-  assert.match(source, /<data-source request="listDatabases">/);
-  assert.match(source, /<data-table/);
-  assert.match(source, /<button data-action="open-database">Open<\/button>/);
-  assert.match(source, /navigate\('db-table-list', \{ dbName: event\.detail\.resource\.name \}\)/);
-});
-
-test('table Open updates both schema and rows panels with the same selected table', async () => {
-  const source = await component('db-table-list');
-  assert.match(source, /<title>Tables — \$\{dbName\}<\/title>/);
-  assert.match(source, /request="listTables"/);
-  assert.match(source, /db-name=\$\{dbName\}/);
-  assert.match(source, /<button data-action="open-table">Open<\/button>/);
-  assert.match(source, /navigate\('db-table-schema', \{ dbName, tableName \}\)/);
-  assert.match(source, /navigate\('db-table-rows'/);
-  assert.match(source, /primaryKey: table\.primaryKey \|\| ''/);
-  assert.match(source, /writable: Boolean\(table\.writable\)/);
+test('database and table lists expose reusable semantic open events', async () => {
+  const databases = await component('db-list');
+  const tables = await component('db-table-list');
+  assert.match(databases, /<data-source request="listDatabases">/);
+  assert.match(databases, /<button data-action="open">Open<\/button>/);
+  assert.match(tables, /<title>Tables — \$\{dbName\}<\/title>/);
+  assert.match(tables, /request="listTables"/);
+  assert.match(tables, /db-name=\$\{dbName\}/);
+  assert.match(tables, /<button data-action="open">Open<\/button>/);
 });
 
 test('schema panel selects columns and lets data-table infer the table', async () => {
@@ -70,21 +57,25 @@ test('schema panel selects columns and lets data-table infer the table', async (
   assert.match(source, /table-name=\$\{tableName\}/);
   assert.match(source, /<data-table><\/data-table>/);
   assert.doesNotMatch(source, /<template\b/);
-  assert.doesNotMatch(source, /navigate\(/);
 });
 
-test('rows panel selects page.data and uses authored Edit action for writable rows', async () => {
+test('rows panel selects page.data and emits semantic Edit only for writable rows', async () => {
   const source = await component('db-table-rows');
-  const helper = await helperModule('db-table-rows');
   assert.match(source, /<title>Rows — \$\{dbName\}\.\$\{tableName\}<\/title>/);
   assert.match(source, /request="listRows"/);
   assert.match(source, /select="data"/);
-  assert.match(source, /\$\{writable \? html`<button data-action="edit-row">Edit<\/button>` : nothing\}/);
-  assert.match(source, /resolveRowId\(event\.detail\.resource, primaryKey\)/);
-  assert.match(source, /navigate\('db-row-editor', \{ dbName, tableName, id \}\)/);
-  assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'code'), 'A');
-  assert.equal(helper.resolveRowId({ id:1, code:'A' }, 'missing'), '1');
-  assert.equal(helper.resolveRowId({}, 'id'), '');
+  assert.match(source, /\$\{writable \? html`<button data-action="edit">Edit<\/button>` : nothing\}/);
+});
+
+test('Canvas owns DB open/edit composition and property mapping', async () => {
+  const source = await readFile('metaproject.yaml','utf8');
+  assert.match(source, /ref: db-list[\s\S]*?on:[\s\S]*?open:[\s\S]*?target: db-table-list/);
+  assert.match(source, /ref: db-table-list[\s\S]*?target: db-table-schema[\s\S]*?target: db-table-rows/);
+  assert.match(source, /dbName: \{ from: source\.dbName \}/);
+  assert.match(source, /tableName: \{ from: event\.resource\.name \}/);
+  assert.match(source, /primaryKey: \{ from: event\.resource\.primaryKey, default: id \}/);
+  assert.match(source, /ref: db-table-rows[\s\S]*?edit:[\s\S]*?target: db-row-editor/);
+  assert.match(source, /id: \{ from: event\.resource\[source\.primaryKey\] \}/);
 });
 
 test('row editor is one row query plus generated data-form plus direct update operation', async () => {
@@ -99,5 +90,4 @@ test('row editor is one row query plus generated data-form plus direct update op
   assert.match(source, /<data-form>[\s\S]*<button data-operation=updateRow>Save<\/button>[\s\S]*<\/data-form>/);
   assert.doesNotMatch(source, /getTableSchema|\bsave=/);
   assert.doesNotMatch(source, /form-input|data-table|data-action/);
-  assert.doesNotMatch(source, /navigate\(/);
 });
