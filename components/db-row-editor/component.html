@@ -6,10 +6,11 @@
 <header class="component-heading"><strong>Edit ${dbName}.${tableName} #${id}</strong></header>
 <data-source
   request="getRow"
-  save="updateRow"
   db-name=${dbName}
   table-name=${tableName}
   id=${id}
 >
-  <data-form></data-form>
+  <data-form>
+    <button data-operation="updateRow">Save</button>
+  </data-form>
 </data-source>
