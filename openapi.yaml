@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: DB API
   version: 1.0.0
+servers:
+  - url: http://localhost:8087/api
+    description: Local
 paths:
   /:
     get:
