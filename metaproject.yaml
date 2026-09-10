@@ -1,6 +1,5 @@
 version: 1
 name: DB
-api_root: http://localhost:8087/api
 openapi: openapi.yaml
 components:
   source: components
