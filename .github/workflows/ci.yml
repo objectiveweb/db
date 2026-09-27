@@ -50,6 +50,9 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
       - name: Install lowest compatible dependencies
         run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction
 
