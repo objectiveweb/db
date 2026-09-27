@@ -33,6 +33,12 @@ class Query
     }
 
     /**
+     * Executes the query and returns DBAL's row count for the operation.
+     *
+     * Result-set queries return Doctrine DBAL Result::rowCount(), whose value is
+     * provided by the database driver. Statement queries return the affected-row
+     * count from Connection::executeStatement().
+     *
      * @param array<string,mixed>|null $bindings
      */
     public function exec(?array $bindings = null): int
