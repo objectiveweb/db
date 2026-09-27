@@ -31,11 +31,11 @@ First stable release of the current Objectiveweb DB API.
 ### Compatibility
 
 - PHP 8.2, 8.3, and 8.4.
-- Doctrine DBAL 3.10 and Doctrine DBAL 4.x.
+- Doctrine DBAL 4.x.
 - SQLite.
 - MySQL 8.4.
 - PostgreSQL 16.
 
-Doctrine DBAL 3.10 and 4.x compatibility is part of the Objectiveweb DB 1.x compatibility guarantee.
+Doctrine DBAL 4.x compatibility is part of the Objectiveweb DB 1.x compatibility guarantee.
 
 The stable 1.x public API includes `Objectiveweb\\DB`, `Table`, `Collection`, `Query`, `Model`, and `Expr`, including the documented CRUD return contracts.
