@@ -92,6 +92,27 @@ class QueryAndTableCoverageTest extends TestCase
         $this->assertSame('x', $data[0]['kind']);
     }
 
+    public function testEmptyCollectionContentRange(): void
+    {
+        $data = $this->table->select(['name' => 'missing']);
+
+        $this->assertSame(0, count($data));
+        $this->assertSame(0, $data->total());
+        $this->assertSame('items */0', $data->contentRange());
+    }
+
+    public function testEmptyPageContentRangePreservesTotal(): void
+    {
+        $data = $this->table->select([], [
+            'range' => [10, 19],
+            'sort' => ['id', 'asc'],
+        ]);
+
+        $this->assertSame(0, count($data));
+        $this->assertSame(4, $data->total());
+        $this->assertSame('items */4', $data->contentRange());
+    }
+
     public function testPerCallJoinMergesWithTableDefaultJoin(): void
     {
         DbTestBootstrap::createThingJoinTables($this->db);
