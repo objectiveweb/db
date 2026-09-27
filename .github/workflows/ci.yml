@@ -5,12 +5,13 @@ on:
   pull_request:
 
 jobs:
-  test:
+  sqlite:
+    name: SQLite / PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.1', '8.2', '8.3']
+        php-version: ['8.2', '8.3', '8.4']
 
     steps:
       - name: Checkout
@@ -20,11 +21,95 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
+          extensions: pdo_sqlite
           coverage: none
           tools: composer:v2
 
       - name: Install dependencies
         run: composer update --prefer-dist --no-interaction
 
-      - name: Run tests
-        run: vendor/bin/phpunit
+      - name: Run SQLite tests
+        env:
+          TEST_DB_DRIVER: sqlite
+        run: vendor/bin/phpunit --testsuite sqlite
+
+  mysql:
+    name: MySQL / PHP 8.4
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: objectiveweb_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction
+
+      - name: Run MySQL tests
+        env:
+          TEST_DB_DRIVER: mysql
+          MYSQL_TEST_DSN: mysql:dbname=objectiveweb_test;host=127.0.0.1;port=3306;charset=utf8mb4
+          MYSQL_TEST_USER: root
+          MYSQL_TEST_PASSWORD: root
+        run: vendor/bin/phpunit --testsuite mysql
+
+  pgsql:
+    name: PostgreSQL / PHP 8.4
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: objectiveweb_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d objectiveweb_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction
+
+      - name: Run PostgreSQL tests
+        env:
+          TEST_DB_DRIVER: pgsql
+          PGSQL_TEST_DSN: pgsql:dbname=objectiveweb_test;host=127.0.0.1;port=5432
+          PGSQL_TEST_USER: postgres
+          PGSQL_TEST_PASSWORD: postgres
+        run: vendor/bin/phpunit --testsuite pgsql
