@@ -38,6 +38,10 @@ class Collection implements \JsonSerializable, \ArrayAccess, \Countable, \Iterat
 
     public function contentRange(): string
     {
+        if ($this->data === []) {
+            return sprintf('items */%d', $this->total);
+        }
+
         return sprintf('items %d-%d/%d', $this->startIndex, $this->endIndex, $this->total);
     }
 
