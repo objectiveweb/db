@@ -376,7 +376,7 @@ Notes:
 
 - Table and field identifiers are validated before SQL generation.
 - Raw string `where` clauses and raw join fragments are intentionally rejected for safety.
-- `Collection::render()` does not emit HTTP headers. Use `Collection::contentRange()` if you need a `Content-Range` response header.
+- `Collection::render()` returns the collection data as an array. Use `Collection::contentRange()` if you need a `Content-Range` response header.
 
 ## Compatibility
 
