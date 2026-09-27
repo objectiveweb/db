@@ -18,8 +18,6 @@ class DB
     private Connection $connection;
     private bool $debug = false;
 
-    public ?string $error = null;
-
     private string $prefix;
 
     /** @var array<string,mixed> */
