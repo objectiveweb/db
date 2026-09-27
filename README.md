@@ -82,8 +82,9 @@ $table = $db->table('users', [
     'model' => null, // optional: class-string to map rows into objects
 ]);
 
-// Insert
-$id = $table->insert(['name' => 'Alice']);
+// Insert (returns the primary-key map, or null when no ID can be determined)
+$inserted = $table->insert(['name' => 'Alice']); // ['id' => '1']
+$id = $inserted['id'];
 
 // Select all rows (returns Objectiveweb\DB\Collection)
 $data = $table->select();
@@ -112,6 +113,8 @@ $updated = $table->update(['name' => 'Alice'], ['name' => 'Alice Smith']);
 // Update by ID
 $updated = $table->update(1, ['name' => 'Alice Smith']);
 ```
+
+`Table::insert(array|Model $data)` returns the inserted primary key as an associative array keyed by the table's configured `pk` (for example `['id' => '1']`). If the primary key cannot be determined, it returns `null`. This applies to regular tables and table inheritance; a custom `pk` is used as the return-array key.
 
 `select($filter, $params)` rule: when `$params['filter']` is provided, it is merged with `$filter` (`array_merge($filter, $params['filter'])`), so keys in `$params['filter']` win on conflicts.
 
@@ -204,6 +207,7 @@ On `insert()`, payload is split by `extends.fields`:
 - base fields are inserted into the base table
 - all other fields are inserted into the child table
 - both writes run in a single transaction and share the same primary key
+- the return value follows the normal `Table::insert()` contract: `[pk => id]`, or `null` when the ID cannot be determined
 
 ```php
 $table->insert([
