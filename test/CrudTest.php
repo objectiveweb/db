@@ -5,6 +5,7 @@ require_once __DIR__ . '/Support/DbTestBootstrap.php';
 
 use Objectiveweb\DB;
 use Objectiveweb\DB\Table;
+use PHPUnit\Framework\Attributes\Depends;
 use PHPUnit\Framework\TestCase;
 
 class CrudTest extends TestCase
@@ -35,7 +36,7 @@ class CrudTest extends TestCase
         }
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testIndex(): void
     {
         $rows = static::$table->select();
@@ -57,7 +58,7 @@ class CrudTest extends TestCase
         $this->assertEquals(5, $count);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testCollectionSupportsByReferenceIteration(): void
     {
         $rows = static::$table->select([], ['sort' => ['id', 'asc']]);
@@ -71,7 +72,7 @@ class CrudTest extends TestCase
         $this->assertSame('mutated-2', $rows[1]['name']);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testFields(): void
     {
         $data = static::$table->select([], ['fields' => ['id', 'f1', 'f2']]);
@@ -83,7 +84,7 @@ class CrudTest extends TestCase
         }
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testPagination(): void
     {
         $data = static::$table->select([], ['range' => [0, 1], 'sort' => ['id', 'asc']]);
@@ -107,7 +108,7 @@ class CrudTest extends TestCase
         $this->assertEquals(5, $data->total());
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testMultipleSortFields(): void
     {
         $data = static::$table->select([], [
@@ -122,7 +123,7 @@ class CrudTest extends TestCase
         $this->assertEquals(5, (int) $data[1]['id']);
     }
 
-    /** @depends testPagination */
+    #[Depends('testPagination')]
     public function testUpdate(): void
     {
         $r = static::$table->update(['name' => 'test1'], ['name' => 'test4']);
@@ -130,7 +131,7 @@ class CrudTest extends TestCase
         $this->assertEquals(1, $r['updated']);
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testGetCollection(): void
     {
         $r = static::$table->get(['name' => 'test4']);
@@ -140,7 +141,7 @@ class CrudTest extends TestCase
         $this->assertEquals('test4', $r[0]['name']);
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testGetParams(): void
     {
         $r = static::$table->get(1, ['fields' => 'name']);
@@ -151,7 +152,7 @@ class CrudTest extends TestCase
         $this->assertEquals('test', $r['name']);
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testUpdateKey(): void
     {
         $r = static::$table->update(3, ['name' => 'test2.1']);
@@ -159,7 +160,7 @@ class CrudTest extends TestCase
         $this->assertEquals(1, $r['updated']);
     }
 
-    /** @depends testUpdateKey */
+    #[Depends('testUpdateKey')]
     public function testSelectKey(): void
     {
         $r = static::$table->get(3);
@@ -167,7 +168,7 @@ class CrudTest extends TestCase
         $this->assertEquals('test2.1', $r['name']);
     }
 
-    /** @depends testSelectKey */
+    #[Depends('testSelectKey')]
     public function testDelete(): void
     {
         $data = static::$table->select();
