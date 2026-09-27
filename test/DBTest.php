@@ -4,6 +4,7 @@ include dirname(__DIR__) . '/vendor/autoload.php';
 require_once __DIR__ . '/Support/DbTestBootstrap.php';
 
 use Objectiveweb\DB;
+use PHPUnit\Framework\Attributes\Depends;
 use PHPUnit\Framework\TestCase;
 
 class DBTest extends TestCase
@@ -34,7 +35,7 @@ class DBTest extends TestCase
         $this->assertEquals(5, (int) $r);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testSelectAll(): void
     {
         $rows = self::$db->select('db_test')->all();
@@ -43,7 +44,7 @@ class DBTest extends TestCase
         $this->assertEquals('test', $rows[0]['name']);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testSelectParams(): void
     {
         $r = self::$db->select('db_test', ['name' => 'test3'], ['fields' => ['id']])->all();
@@ -55,7 +56,7 @@ class DBTest extends TestCase
         $this->assertEquals(4, (int) $r[0]['id']);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testSelectLike(): void
     {
         $rows = self::$db->select('db_test', ['name' => 'test%'])->all();
@@ -64,7 +65,7 @@ class DBTest extends TestCase
         $this->assertEquals('test', $rows[0]['name']);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testSelectMap(): void
     {
         $map = self::$db->select('db_test')->map('id');
@@ -77,7 +78,7 @@ class DBTest extends TestCase
         $this->assertEquals(null, $map[5]['name']);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testSelectIn(): void
     {
         $rows = self::$db->select('db_test', ['id' => [2, 3, 4]])->all();
@@ -88,7 +89,7 @@ class DBTest extends TestCase
         $this->assertEquals(4, (int) $rows[2]['id']);
     }
 
-    /** @depends testInsert */
+    #[Depends('testInsert')]
     public function testUpdate(): void
     {
         $r = self::$db->update('db_test', ['name' => 'test4'], ['name' => 'test1']);
@@ -96,7 +97,7 @@ class DBTest extends TestCase
         $this->assertEquals(1, $r);
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testSelectFetch(): void
     {
         $r = self::$db->select('db_test', ['name' => 'test4'])->fetch();
@@ -104,7 +105,7 @@ class DBTest extends TestCase
         $this->assertEquals('test4', $r['name']);
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testSelectEmptyResults(): void
     {
         $r = self::$db->select('db_test', ['name' => 'test5'])->all();
@@ -112,7 +113,7 @@ class DBTest extends TestCase
         $this->assertEmpty(count($r));
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testSelectNull(): void
     {
         $r = self::$db->select('db_test', ['name' => null])->all();
@@ -121,7 +122,7 @@ class DBTest extends TestCase
         $this->assertEquals(5, (int) $r[0]['id']);
     }
 
-    /** @depends testUpdate */
+    #[Depends('testUpdate')]
     public function testDelete(): void
     {
         $rows = self::$db->select('db_test')->all();
