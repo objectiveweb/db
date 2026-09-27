@@ -124,10 +124,10 @@ class DB
     }
 
     /**
-     * @param array<string,mixed>|string|null $where
+     * @param array<string,mixed>|null $where
      * @param array<string,mixed> $params
      */
-    public function select(string $table, array|string|null $where = null, array $params = []): Query
+    public function select(string $table, ?array $where = null, array $params = []): Query
     {
         $defaults = [
             'fields' => ['*'],
@@ -179,10 +179,10 @@ class DB
     }
 
     /**
-     * @param array<string,mixed>|string|null $where
+     * @param array<string,mixed>|null $where
      * @param array<string,mixed> $params
      */
-    public function count(string $table, array|string|null $where = null, array $params = []): int
+    public function count(string $table, ?array $where = null, array $params = []): int
     {
         $params = array_merge([
             'join' => [],
@@ -262,9 +262,9 @@ class DB
 
     /**
      * @param array<string,mixed> $data
-     * @param array<string,mixed>|string|null $where
+     * @param array<string,mixed>|null $where
      */
-    public function update(string $table, array $data, array|string|null $where = null, ?int $limit = null): int
+    public function update(string $table, array $data, ?array $where = null, ?int $limit = null): int
     {
         if ($data === []) {
             throw new InvalidQueryException('Nothing to UPDATE');
@@ -297,8 +297,8 @@ class DB
         return $this->query($sql)->exec($bindings);
     }
 
-    /** @param array<string,mixed>|string|null $where */
-    public function delete(string $table, array|string|null $where): int
+    /** @param array<string,mixed>|null $where */
+    public function delete(string $table, ?array $where): int
     {
         [$whereSql, $whereBindings] = $this->buildWhereClause($where);
         if ($whereSql === '') {
@@ -367,18 +367,14 @@ class DB
     }
 
     /**
-     * @param array<string,mixed>|string|null $args
+     * @param array<string,mixed>|null $args
      * @param callable(string):string|null $resolveField
      * @return array{0:string,1:array<string,mixed>}
      */
-    private function buildWhereClause(array|string|null $args = null, string $glue = 'AND', ?callable $resolveField = null): array
+    private function buildWhereClause(?array $args = null, string $glue = 'AND', ?callable $resolveField = null): array
     {
-        if ($args === null || $args === '') {
+        if ($args === null) {
             return ['', []];
-        }
-
-        if (is_string($args)) {
-            throw new InvalidQueryException('Raw WHERE string is disabled. Use array conditions.');
         }
 
         $cond = [];
