@@ -45,10 +45,10 @@ class Collection implements \JsonSerializable, \ArrayAccess, \Countable, \Iterat
         return sprintf('items %d-%d/%d', $this->startIndex, $this->endIndex, $this->total);
     }
 
-    public function render(string $contentType = 'application/json'): string
+    /** @return list<mixed> */
+    public function render(): array
     {
-        unset($contentType);
-        return json_encode($this->data, JSON_THROW_ON_ERROR);
+        return $this->data;
     }
 
     /** @return list<mixed> */
