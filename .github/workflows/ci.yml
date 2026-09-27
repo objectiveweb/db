@@ -34,6 +34,30 @@ jobs:
           TEST_DB_DRIVER: sqlite
         run: vendor/bin/phpunit --testsuite sqlite
 
+  sqlite-lowest:
+    name: SQLite / PHP 8.2 / lowest dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_sqlite
+          coverage: none
+          tools: composer:v2
+
+      - name: Install lowest compatible dependencies
+        run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction
+
+      - name: Run SQLite tests
+        env:
+          TEST_DB_DRIVER: sqlite
+        run: vendor/bin/phpunit --testsuite sqlite
+
   mysql:
     name: MySQL / PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
