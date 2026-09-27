@@ -24,8 +24,8 @@ use Objectiveweb\DB;
 // Raw query
 $db->query('CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255))')->exec();
 
-// Insert
-$insertId = $db->insert('users', ['name' => 'Alice']);
+// Low-level insert returns the scalar generated ID (string|null)
+$insertId = $db->insert('users', ['name' => 'Alice']); // '1'
 
 // Update (table, values, conditions)
 $affectedRows = $db->update('users', ['name' => 'Alice Smith'], ['id' => 1]);
@@ -68,6 +68,8 @@ $db->transaction(function (DB $db) {
     return $id;
 });
 ```
+
+`DB::insert(string $table, array $data)` is the low-level API and returns the generated ID as a scalar `string`, or `null` when no ID can be determined. `Table::insert()` has a different return contract, described below.
 
 ## CRUD operations
 
@@ -367,12 +369,11 @@ Notes:
 - Raw string `where` clauses and raw join fragments are intentionally rejected for safety.
 - `Collection::render()` does not emit HTTP headers. Use `Collection::contentRange()` if you need a `Content-Range` response header.
 
-## Migration notes
+## Compatibility
 
-- Low-level internals moved from direct PDO usage to Doctrine DBAL.
-- Pagination totals now use a dedicated `COUNT(*)` query instead of `SQL_CALC_FOUND_ROWS`.
-- Transaction helpers throw typed exceptions (`TransactionException`) when begin/commit/rollback fails.
-- Test suite defaults to SQLite in-memory, so local MySQL is no longer required.
+- PHP 8.2, 8.3, and 8.4 are supported and tested.
+- Doctrine DBAL 3.10 and 4.x are supported public dependency ranges. Compatibility with both DBAL major versions is part of the 1.x support guarantee.
+- SQLite, MySQL 8.4, and PostgreSQL 16 are tested database backends.
 
 ## Stability policy
 
