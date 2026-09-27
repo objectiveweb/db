@@ -71,6 +71,16 @@ $db->transaction(function (DB $db) {
 
 `DB::insert(string $table, array $data)` is the low-level API and returns the generated ID as a scalar `string`, or `null` when no ID can be determined. `Table::insert()` has a different return contract, described below.
 
+## Query execution
+
+`Query::exec(?array $bindings = null): int` preserves Doctrine DBAL's native row-count semantics:
+
+- Result-set queries such as `SELECT`, `SHOW`, `DESCRIBE`, `PRAGMA`, and `WITH` are executed with `Connection::executeQuery()`. `exec()` returns the resulting `Doctrine\\DBAL\\Result::rowCount()`.
+- Non-result-set statements are executed with `Connection::executeStatement()`. `exec()` returns the affected-row count reported by DBAL.
+- For result-set queries, the exact meaning and reliability of `rowCount()` is driver-dependent. Objectiveweb DB intentionally exposes the value provided by Doctrine DBAL rather than normalizing or recalculating it.
+
+Use `fetch()`, `all()`, or `map()` to consume rows from result-set queries.
+
 ## CRUD operations
 
 ```php
