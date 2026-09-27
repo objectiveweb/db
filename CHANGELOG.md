@@ -2,11 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-The project follows Semantic Versioning from version 1.0.0 onward.
+The project follows Semantic Versioning.
 
-## 1.0.0
+## 0.8.0
 
-First stable release of the current Objectiveweb DB API.
+Major modernization release of Objectiveweb DB. This is a pre-1.0 release and contains breaking changes from 0.7.
 
 ### Added
 
@@ -37,6 +37,6 @@ First stable release of the current Objectiveweb DB API.
 - MySQL 8.4.
 - PostgreSQL 16.
 
-Doctrine DBAL 4.x compatibility is part of the Objectiveweb DB 1.x compatibility guarantee.
+Doctrine DBAL 4.x compatibility is part of the Objectiveweb DB 0.8.x compatibility target.
 
-The stable 1.x public API includes `Objectiveweb\\DB`, `Table`, `Collection`, `Query`, `Model`, and `Expr`, including the documented CRUD return contracts.
+The documented 0.8.x public API includes `Objectiveweb\\DB`, `Table`, `Collection`, `Query`, `Model`, and `Expr`, including the documented CRUD return contracts. Patch releases in the 0.8.x series should preserve these contracts.
