@@ -12,9 +12,9 @@ First stable release of the current Objectiveweb DB API.
 
 - Doctrine DBAL-based database abstraction with SQLite, MySQL, and PostgreSQL support.
 - Table API with CRUD operations, filtering, sorting, ranges, joins, grouping, aggregates, and row locking.
-- Optional model mapping with field filtering and validation rules.
+- Optional model mapping through the public `Model` extension API, with field filtering and validation rules.
 - Table inheritance across base and child tables with transactional writes.
-- Structured SQL expressions through `Expr`.
+- Structured SQL expressions through the public `Expr` API.
 - Transaction helpers and typed database exceptions.
 - Connection health checking and reconnection support.
 - Collection pagination metadata through `total()` and `contentRange()`.
@@ -37,3 +37,5 @@ First stable release of the current Objectiveweb DB API.
 - PostgreSQL 16.
 
 Doctrine DBAL 3.10 and 4.x compatibility is part of the Objectiveweb DB 1.x compatibility guarantee.
+
+The stable 1.x public API includes `Objectiveweb\\DB`, `Table`, `Collection`, `Query`, `Model`, and `Expr`, including the documented CRUD return contracts.
