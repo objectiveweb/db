@@ -92,6 +92,16 @@ class QueryAndTableCoverageTest extends TestCase
         $this->assertSame('x', $data[0]['kind']);
     }
 
+    public function testCollectionRenderReturnsDataArray(): void
+    {
+        $data = $this->table->select([], ['sort' => ['id', 'asc']]);
+
+        $rendered = $data->render();
+
+        $this->assertIsArray($rendered);
+        $this->assertSame($data->data(), $rendered);
+    }
+
     public function testEmptyCollectionContentRange(): void
     {
         $data = $this->table->select(['name' => 'missing']);
