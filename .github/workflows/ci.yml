@@ -35,8 +35,12 @@ jobs:
         run: vendor/bin/phpunit --testsuite sqlite
 
   mysql:
-    name: MySQL / PHP 8.4
+    name: MySQL / PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.2', '8.3', '8.4']
     services:
       mysql:
         image: mysql:8.4
@@ -58,7 +62,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php-version }}
           extensions: pdo_mysql
           coverage: none
           tools: composer:v2
@@ -75,8 +79,12 @@ jobs:
         run: vendor/bin/phpunit --testsuite mysql
 
   pgsql:
-    name: PostgreSQL / PHP 8.4
+    name: PostgreSQL / PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.2', '8.3', '8.4']
     services:
       postgres:
         image: postgres:16
@@ -99,7 +107,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php-version }}
           extensions: pdo_pgsql
           coverage: none
           tools: composer:v2
