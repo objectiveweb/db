@@ -391,13 +391,14 @@ Notes:
 ## Compatibility
 
 - PHP 8.2, 8.3, and 8.4 are supported and tested.
-- Doctrine DBAL 4.x is the supported public dependency range for the 1.x series.
+- Doctrine DBAL 4.x is the supported public dependency range for the 0.8.x series.
 - SQLite, MySQL 8.4, and PostgreSQL 16 are tested database backends.
 
 ## Stability policy
 
-- Semantic Versioning is used for public APIs.
-- Public stable APIs: `Objectiveweb\DB`, `Objectiveweb\DB\Table`, `Objectiveweb\DB\Collection`, `Objectiveweb\DB\Query`, `Objectiveweb\DB\Model`, and `Objectiveweb\DB\Expr`.
+- Semantic Versioning is used. Version 0.8 is still pre-1.0, so future minor releases may contain breaking public API changes.
+- The documented 0.8.x public API contract includes `Objectiveweb\DB`, `Objectiveweb\DB\Table`, `Objectiveweb\DB\Collection`, `Objectiveweb\DB\Query`, `Objectiveweb\DB\Model`, and `Objectiveweb\DB\Expr`.
+- Patch releases in the 0.8.x series should preserve these documented public contracts.
 - Internal/private helpers in `DB` (identifier parsing/compilation methods) are not part of the public contract.
 
 ## Test matrix (SQLite + MySQL + PostgreSQL)
