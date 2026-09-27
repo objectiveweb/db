@@ -264,7 +264,7 @@ class DB
      * @param array<string,mixed> $data
      * @param array<string,mixed>|null $where
      */
-    public function update(string $table, array $data, ?array $where = null, ?int $limit = null): int
+    public function update(string $table, array $data, ?array $where = null): int
     {
         if ($data === []) {
             throw new InvalidQueryException('Nothing to UPDATE');
@@ -287,11 +287,10 @@ class DB
         }
 
         $sql = sprintf(
-            'UPDATE %s SET %s WHERE %s%s',
+            'UPDATE %s SET %s WHERE %s',
             $this->quoteIdentifier($tableName),
             implode(', ', $changes),
-            $whereSql,
-            $limit !== null ? sprintf(' LIMIT %d', $limit) : ''
+            $whereSql
         );
 
         return $this->query($sql)->exec($bindings);
