@@ -18,6 +18,7 @@ First stable release of the current Objectiveweb DB API.
 - Transaction helpers and typed database exceptions.
 - Connection health checking and reconnection support.
 - Collection pagination metadata through `total()` and `contentRange()`.
+- Stable `Query::exec()` semantics: DBAL `Result::rowCount()` for result-set queries and affected-row count for statement queries.
 - Multi-database Docker test environment.
 - GitHub Actions coverage for SQLite, MySQL, and PostgreSQL on every supported PHP version.
 
