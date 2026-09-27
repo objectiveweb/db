@@ -1,11 +1,13 @@
 {
   "name": "objectiveweb/db",
   "type": "library",
-  "description": "Database Abstraction Layer and Management Frontend",
+  "description": "Database abstraction layer built on Doctrine DBAL",
   "keywords": [
+    "database",
     "db",
     "sql",
-    "ui"
+    "doctrine",
+    "dbal"
   ],
   "license": "MIT",
   "authors": [
@@ -22,7 +24,9 @@
     "phpunit/phpunit": "^11.5"
   },
   "autoload": {
-    "psr-4": {"Objectiveweb\\": "src/"}
+    "psr-4": {
+      "Objectiveweb\\": "src/"
+    }
   },
   "suggest": {
     "robmorgan/phinx": "To write migrations"
