@@ -118,6 +118,15 @@ $updated = $table->update(1, ['name' => 'Alice Smith']);
 
 `Table::insert(array|Model $data)` returns the inserted primary key as an associative array keyed by the table's configured `pk` (for example `['id' => '1']`). If the primary key cannot be determined, it returns `null`. This applies to regular tables and table inheritance; a custom `pk` is used as the return-array key.
 
+Other `Table` CRUD contracts:
+
+- `Table::get()` with no key returns a `Collection`; `Table::get(array $filter)` also returns a filtered `Collection`.
+- `Table::get(int|string $id)` returns one row as an array, or the configured `Model` instance when model mapping is enabled. It throws `NotFoundException` when no row matches.
+- `Table::update(int|string|array $key, array|Model $data)` returns `['updated' => int]`, where the value is the affected-row count.
+- `Table::delete(int|string|array $key)` returns the affected-row count as an `int`.
+
+The low-level `DB::update()` and `DB::delete()` methods return the affected-row count directly as an `int`.
+
 `select($filter, $params)` rule: when `$params['filter']` is provided, it is merged with `$filter` (`array_merge($filter, $params['filter'])`), so keys in `$params['filter']` win on conflicts.
 
 ### Model mapping (optional)
@@ -378,7 +387,7 @@ Notes:
 ## Stability policy
 
 - Semantic Versioning is used for public APIs.
-- Public stable APIs: `Objectiveweb\DB`, `Objectiveweb\DB\Table`, `Objectiveweb\DB\Collection`, `Objectiveweb\DB\Query`.
+- Public stable APIs: `Objectiveweb\DB`, `Objectiveweb\DB\Table`, `Objectiveweb\DB\Collection`, `Objectiveweb\DB\Query`, `Objectiveweb\DB\Model`, and `Objectiveweb\DB\Expr`.
 - Internal/private helpers in `DB` (identifier parsing/compilation methods) are not part of the public contract.
 
 ## Test matrix (SQLite + MySQL + PostgreSQL)
