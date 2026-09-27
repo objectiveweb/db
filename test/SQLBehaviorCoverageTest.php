@@ -257,6 +257,28 @@ class SQLBehaviorCoverageTest extends TestCase
         $this->assertCount(3, $rows);
     }
 
+    public function testUpdateIsPortableAcrossSupportedDatabases(): void
+    {
+        $updated = $this->db->update('items', ['kind' => 'updated'], ['kind' => 'x']);
+
+        $this->assertSame(2, $updated);
+        $rows = $this->db->select('items', ['kind' => 'updated'], ['order' => 'id ASC'])->all();
+        $this->assertCount(2, $rows);
+        $this->assertSame('alpha', $rows[0]['name']);
+        $this->assertSame('beta', $rows[1]['name']);
+    }
+
+    public function testUpdatePublicSignatureHasNoLimitParameter(): void
+    {
+        $method = new ReflectionMethod(DB::class, 'update');
+
+        $this->assertSame(3, $method->getNumberOfParameters());
+        $this->assertSame(['table', 'data', 'where'], array_map(
+            static fn (ReflectionParameter $parameter): string => $parameter->getName(),
+            $method->getParameters()
+        ));
+    }
+
     public function testMutationSafetyAndInvalidSqlInputs(): void
     {
         $this->expectException(InvalidQueryException::class);
