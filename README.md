@@ -381,7 +381,7 @@ Notes:
 ## Compatibility
 
 - PHP 8.2, 8.3, and 8.4 are supported and tested.
-- Doctrine DBAL 3.10 and 4.x are supported public dependency ranges. Compatibility with both DBAL major versions is part of the 1.x support guarantee.
+- Doctrine DBAL 4.x is the supported public dependency range for the 1.x series.
 - SQLite, MySQL 8.4, and PostgreSQL 16 are tested database backends.
 
 ## Stability policy
