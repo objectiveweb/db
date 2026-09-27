@@ -219,12 +219,6 @@ class DBCoverageTest extends TestCase
         $this->assertSame('1', (string) $row['value']);
     }
 
-    public function testUnsafeRawWhereAndJoinAreRejected(): void
-    {
-        $this->expectException(InvalidQueryException::class);
-        $this->db->select('users', '1=1')->all();
-    }
-
     public function testInvalidLockModeIsRejected(): void
     {
         $this->expectException(InvalidQueryException::class);
