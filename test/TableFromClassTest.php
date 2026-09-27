@@ -1,36 +1,27 @@
 <?php
-/**
- * Tests for the DB\Table
- */
+
 include dirname(__DIR__) . '/vendor/autoload.php';
+require_once __DIR__ . '/Support/DbTestBootstrap.php';
 
 use Objectiveweb\DB;
 use Objectiveweb\DB\Table;
 
-
 class DbTestTable extends DB\Table
 {
-    protected $table = 'db_test';
+    protected ?string $table = 'db_test';
 }
 
 class TableFromClassTest extends CrudTest
 {
-    /** @var  Table */
-    static protected $table;
-
-    public static function setUpBeforeClass()
+    public static function setUpBeforeClass(): void
     {
-        $db = DB::connect('mysql:dbname=objectiveweb;host=127.0.0.1', 'root', getenv('MYSQL_PASSWORD'));
-        $db->query('drop table if exists db_test')->exec();
+        $db = DbTestBootstrap::connect();
+        DbTestBootstrap::createDbTestTable($db, true);
 
-        $db->query('create table db_test
-            (`id` INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-                `name` VARCHAR(255));')->exec();
-
-        self::$table = $db->table('DbTestTable');
+        static::$table = $db->table(DbTestTable::class);
     }
 
-    public function testClass()
+    public function testClass(): void
     {
         $this->assertInstanceOf(DbTestTable::class, self::$table);
     }
