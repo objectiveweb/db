@@ -834,12 +834,12 @@ class DB
 
     private function quoteIdentifier(string $identifier): string
     {
-        return $this->connection->quoteIdentifier($identifier);
+        return $this->connection->getDatabasePlatform()->quoteSingleIdentifier($identifier);
     }
 
     private function quoteSingleIdentifier(string $identifier): string
     {
-        return $this->connection->quoteSingleIdentifier($identifier);
+        return $this->connection->getDatabasePlatform()->quoteSingleIdentifier($identifier);
     }
 
     /**
